@@ -1,111 +1,496 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..800;1,14..32,300..800&family=JetBrains+Mono:wght@400;500&display=swap";
+@import "tailwindcss";
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+/* ==========================================================================
+   CULTURESYNC DESIGN SYSTEM — CSS TOKENS & CUSTOM COMPONENTS
+   Source: Figma Prototype (large-armor-83287979.figma.site)
+   ========================================================================== */
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* --------------------------------------------------------------------------
+   1. THEME TOKENS
+   -------------------------------------------------------------------------- */
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+@theme {
+  /* Typography — Font Families */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* Typography — Font Sizes */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: calc(1 / 0.75);
+  --text-sm: 0.875rem;
+  --text-sm--line-height: calc(1.25 / 0.875);
+  --text-base: 1rem;
+  --text-base--line-height: calc(1.5 / 1);
+  --text-lg: 1.125rem;
+  --text-lg--line-height: calc(1.75 / 1.125);
+  --text-xl: 1.25rem;
+  --text-xl--line-height: calc(1.75 / 1.25);
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: calc(2 / 1.5);
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: calc(2.25 / 1.875);
+  --text-4xl: 2.25rem;
+  --text-4xl--line-height: calc(2.5 / 2.25);
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 1;
+
+  /* Typography — Font Weights */
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Typography — Letter Spacing */
+  --tracking-tight: -0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+
+  /* Typography — Line Heights */
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-relaxed: 1.625;
+
+  /* Colors — Primary Brand (Indigo) */
+  --color-indigo-50: #eef2ff;
+  --color-indigo-100: #e0e7ff;
+  --color-indigo-200: #c7d2fe;
+  --color-indigo-300: #a5b4fc;
+  --color-indigo-400: #818cf8;
+  --color-indigo-500: #6366f1;
+  --color-indigo-600: #4f46e5;
+  --color-indigo-700: #4338ca;
+  --color-indigo-800: #3730a3;
+  --color-indigo-900: #312e81;
+  --color-indigo-950: #1e1b4b;
+
+  /* Colors — Neutrals (Slate) */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+
+  /* Colors — Status: Success (Emerald) */
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-900: #064e3b;
+
+  /* Colors — Status: Error (Red) */
+  --color-red-50: #fef2f2;
+  --color-red-100: #fee2e2;
+  --color-red-200: #fecaca;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+  --color-red-800: #991b1b;
+  --color-red-900: #7f1d1d;
+
+  /* Colors — Status: Warning (Amber) */
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+
+  /* Colors — Status: Info (Blue) */
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+
+  /* Colors — Accent: Orange */
+  --color-orange-50: #fff7ed;
+  --color-orange-600: #ea580c;
+
+  /* Colors — Accent: Teal */
+  --color-teal-50: #f0fdfa;
+  --color-teal-600: #0d9488;
+
+  /* Colors — Accent: Cyan */
+  --color-cyan-100: #cffafe;
+  --color-cyan-700: #0e7490;
+
+  /* Colors — Accent: Violet */
+  --color-violet-50: #f5f3ff;
+  --color-violet-100: #ede9fe;
+  --color-violet-600: #7c3aed;
+  --color-violet-700: #6d28d9;
+  --color-violet-900: #4c1d95;
+
+  /* Colors — Accent: Pink */
+  --color-pink-100: #fce7f3;
+  --color-pink-700: #be185d;
+
+  /* Colors — Accent: Rose */
+  --color-rose-100: #ffe4e6;
+  --color-rose-700: #be123c;
+
+  /* Colors — Base */
+  --color-white: #ffffff;
+  --color-canvas: #f8fafc;
+
+  /* Spacing Base Unit */
+  --spacing: 0.25rem;
+
+  /* Container Widths */
+  --container-xs: 20rem;
+  --container-sm: 24rem;
+  --container-xl: 36rem;
+  --container-2xl: 42rem;
+  --container-3xl: 48rem;
+
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+
+  /* Blur */
+  --blur-3xl: 64px;
+
+  /* Transitions */
+  --default-transition-duration: 0.15s;
+  --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Default Font Families */
+  --default-font-family: var(--font-sans);
+  --default-mono-font-family: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+/* --------------------------------------------------------------------------
+   2. BASE STYLES & GLOBAL RESETS
+   -------------------------------------------------------------------------- */
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #0f172a;
+  background: #f8fafc;
   margin: 0;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+input,
+textarea,
+select {
+  font-family: var(--font-sans);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+/* --------------------------------------------------------------------------
+   3. SCROLLBAR STYLING
+   -------------------------------------------------------------------------- */
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
 }
-h2 {
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* --------------------------------------------------------------------------
+   4. CUSTOM COMPONENT CLASSES
+   -------------------------------------------------------------------------- */
+
+/* --- OTP Input --- */
+.otp-input {
+  width: 52px;
+  height: 60px;
+  text-align: center;
   font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.otp-input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.otp-input.filled {
+  background: #eef2ff;
+  border-color: #4f46e5;
+}
+
+/* --- Custom Checkbox --- */
+.custom-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: all 0.15s;
+}
+
+.custom-checkbox:checked {
+  background: #4f46e5;
+  border-color: #4f46e5;
+}
+
+.custom-checkbox:checked::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  width: 8px;
+  height: 5px;
+  border-bottom: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  transform: rotate(-45deg);
+}
+
+/* --- File Drop Zone --- */
+.drop-zone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.drop-zone:hover,
+.drop-zone.active {
+  background: #eef2ff;
+  border-color: #4f46e5;
+}
+
+/* --- Sidebar Navigation Item --- */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #64748b;
+  text-decoration: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.nav-item:hover {
+  color: #334155;
+  background: #f1f5f9;
+}
+
+.nav-item.active {
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+/* --- Department Selection Card --- */
+.dept-card {
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dept-card:hover {
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
+  border-color: #4f46e5 !important;
+}
+
+.dept-card.selected {
+  background: #eef2ff !important;
+  border-color: #4f46e5 !important;
+}
+
+/* --- Stepper Progress Dot --- */
+.step-dot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.step-dot.pending {
+  color: #94a3b8;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+}
+
+.step-dot.active {
+  color: #ffffff;
+  background: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+}
+
+.step-dot.complete {
+  color: #ffffff;
+  background: #059669;
+}
+
+/* --- Toggle Switch --- */
+.toggle {
+  appearance: none;
+  width: 36px;
+  height: 20px;
+  background: #cbd5e1;
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+
+.toggle:checked {
+  background: #4f46e5;
+}
+
+.toggle:checked::after {
+  transform: translateX(16px);
+}
+
+/* --- Data Table Row --- */
+.table-row {
+  transition: background 0.1s;
+}
+
+.table-row:hover {
+  background: #f8fafc;
+}
+
+/* --------------------------------------------------------------------------
+   5. KEYFRAME ANIMATIONS
+   -------------------------------------------------------------------------- */
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
-p {
-  margin: 0;
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+@keyframes confettiFall {
+  from {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(120px) rotate(720deg) scale(0.5);
+  }
+}
+
+@keyframes pulseRing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(79, 70, 229, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+  }
+}
+
+/* --- Animation Utility Classes --- */
+.animate-fade-up {
+  animation: fadeUp 0.3s both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s both;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s both;
+}
+
+.confetti-piece {
+  position: absolute;
+  animation: confettiFall 2s forwards;
+}
+
+.pulse-ring {
+  animation: pulseRing 2s infinite;
 }
