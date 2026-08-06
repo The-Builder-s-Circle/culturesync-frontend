@@ -13,33 +13,10 @@ const NAV_LINKS = [
   { label: 'FAQ', href: '#faq' },
 ]
 
+import { Logo } from '../ui'
+
 export function BrandMark({ className }: { className?: string }) {
-  return (
-    <Link to="/" className={cn('group flex items-center gap-2.5', className)}>
-      <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-sm shadow-indigo-500/30 transition-transform group-hover:scale-105">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M12 2l7 3.5v5.2c0 4.6-3 8.4-7 9.8-4-1.4-7-5.2-7-9.8V5.5L12 2z"
-            fill="currentColor"
-            opacity="0.35"
-          />
-          <path
-            d="M12 5.5l4.5 2.2v3.2c0 2.7-1.8 5-4.5 5.9-2.7-.9-4.5-3.2-4.5-5.9V7.7L12 5.5z"
-            fill="currentColor"
-          />
-        </svg>
-      </span>
-      <span className="font-display text-lg font-bold tracking-tight text-slate-900">
-        CultureSync
-      </span>
-    </Link>
-  )
+  return <Logo className={className} />
 }
 
 export default function Navbar() {
