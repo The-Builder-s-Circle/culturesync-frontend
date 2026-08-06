@@ -39,20 +39,21 @@ export default function FinalCTA() {
               your organization needs in one place.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-              <Link to="/login">
-                <Button
-                  size="lg"
-                  className="border border-white/10 bg-white px-7 text-indigo-700 shadow-lg hover:bg-indigo-50"
-                >
-                  Start free
-                  <IconArrowRight className="size-4" aria-hidden="true" />
-                </Button>
-              </Link>
+              <Button
+                size="lg"
+                // className="border  border-white/10 bg-white px-7 text-indigo-700 shadow-lg hover:bg-indigo-50"
+                variant="secondary"
+                className="hover:scale-105"
+              >
+                Start free
+                <IconArrowRight className="size-4" aria-hidden="true" />
+              </Button>
+
               <a href="#pricing">
                 <Button
                   variant="ghost"
                   size="lg"
-                  className="px-7 text-white hover:bg-white/10 hover:text-white"
+                  className="px-7 border text-white hover:bg-white/12 hover:text-white"
                 >
                   View pricing
                 </Button>
@@ -65,5 +66,5 @@ export default function FinalCTA() {
         </motion.div>
       </Container>
     </section>
-  )
+  );
 }
