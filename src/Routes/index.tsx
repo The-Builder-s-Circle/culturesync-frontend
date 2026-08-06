@@ -1,8 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import RootLayout from '../layouts/RootLayout'
-import LandingPage from '../Pages/LandingPage'
-import LoginPage from '../Pages/LoginPage'
-import DashboardPage from '../Pages/DashboardPage'
+import LandingPage from '../pages/LandingPage'
+import LoginPage from '../pages/LoginPage'
+import DashboardPage from '../pages/DashboardPage'
 import ProtectedRoute from './ProtectedRoute'
 
 export default function AppRoutes() {
