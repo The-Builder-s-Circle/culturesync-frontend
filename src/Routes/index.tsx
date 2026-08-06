@@ -1,9 +1,21 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { Routes, Route, Navigate } from 'react-router'
 import RootLayout from '../layouts/RootLayout'
 import LandingPage from '../pages/LandingPage'
 import DashboardPage from '../pages/DashboardPage'
 import { RegisterPage, VerifyOtpPage, SignInPage } from '../pages/auth'
 import ProtectedRoute from './ProtectedRoute'
+
+const LoginPage = lazy(() => import('../pages/LoginPage'))
+const DashboardPage = lazy(() => import('../pages/DashboardPage'))
+
+function PageFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-canvas text-sm text-slate-500">
+      Loading...
+    </div>
+  )
+}
 
 export default function AppRoutes() {
   return (

@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import {
   IconArrowRight,
   IconCalendarClock,
@@ -7,7 +7,6 @@ import {
   IconClipboardCheck,
   IconSettings,
   IconSparkles,
-  IconStar,
   IconTargetArrow,
   IconUsers,
 } from '@tabler/icons-react'
@@ -24,7 +23,7 @@ const heroFade = (delay: number) => ({
 
 const KPIS = [
   { label: 'Employees', value: '248', delta: '+6.2%', deltaTone: 'text-emerald-600' },
-  { label: 'On leave', value: '12', delta: 'today', deltaTone: 'text-slate-400' },
+  { label: 'On leave', value: '12', delta: 'today', deltaTone: 'text-slate-500' },
   { label: 'Appraisals', value: '8', delta: 'pending', deltaTone: 'text-amber-600' },
   { label: 'Onboarding', value: '3', delta: 'active', deltaTone: 'text-blue-600' },
 ]
@@ -57,7 +56,7 @@ function MiniSidebar() {
           key={i}
           className={
             'flex size-8 items-center justify-center rounded-lg ' +
-            (i === 0 ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400')
+            (i === 0 ? 'bg-indigo-100 text-indigo-600' : 'text-slate-500')
           }
         >
           <Icon className="size-4" aria-hidden="true" />
@@ -119,7 +118,7 @@ function DashboardPreview() {
                   key={kpi.label}
                   className="rounded-xl border border-slate-100 bg-slate-50/60 p-2.5"
                 >
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
                     {kpi.label}
                   </p>
                   <div className="mt-1 flex items-baseline gap-1.5">
@@ -151,7 +150,7 @@ function DashboardPreview() {
                           <p className="text-[12px] font-medium text-slate-800">
                             {e.name}
                           </p>
-                          <p className="text-[10px] text-slate-400">{e.role}</p>
+                          <p className="text-[10px] text-slate-500">{e.role}</p>
                         </div>
                       </div>
                       <StatusBadge variant={e.status} />
@@ -206,7 +205,7 @@ function DashboardPreview() {
                       <li key={d.name}>
                         <div className="flex items-center justify-between text-[10px]">
                           <span className="text-slate-600">{d.name}</span>
-                          <span className="font-mono text-slate-400">
+                          <span className="font-mono text-slate-500">
                             {d.pct}%
                           </span>
                         </div>
@@ -239,7 +238,7 @@ function DashboardPreview() {
           <p className="text-[11px] font-semibold text-slate-800">
             Amara completed onboarding
           </p>
-          <p className="text-[10px] text-slate-400">2 minutes ago</p>
+          <p className="text-[10px] text-slate-500">2 minutes ago</p>
         </div>
       </motion.div>
 
@@ -256,7 +255,7 @@ function DashboardPreview() {
           <p className="text-[11px] font-semibold text-slate-800">
             +2 employees this week
           </p>
-          <p className="text-[10px] text-slate-400">4 workspaces active</p>
+          <p className="text-[10px] text-slate-500">4 workspaces active</p>
         </div>
       </motion.div>
     </div>
@@ -311,7 +310,7 @@ export default function Hero() {
               className="mt-5 max-w-lg text-base leading-relaxed text-slate-600 sm:text-lg"
             >
               CultureSync brings employees, goals, appraisals, leave, and
-              performance into one platform — with guided onboarding for every
+              performance into one platform, with guided onboarding for every
               new organization.
             </motion.p>
 
@@ -327,39 +326,9 @@ export default function Hero() {
               </Link>
               <a href="#how-it-works">
                 <Button variant="secondary" size="lg" className="px-6">
-                  Book a demo
+                  See how it works
                 </Button>
               </a>
-            </motion.div>
-
-            <motion.div
-              {...heroFade(0.4)}
-              className="mt-9 flex flex-wrap items-center gap-4"
-            >
-              <div className="flex -space-x-2.5">
-                {['Ada Obi', 'Sam Idris', 'Lena Park', 'Kofi Mensah'].map((n) => (
-                  <Avatar key={n} name={n} size="md" className="ring-white" />
-                ))}
-                <span className="flex size-9 items-center justify-center rounded-full bg-slate-900 text-[10px] font-semibold text-white ring-2 ring-white">
-                  +3.4k
-                </span>
-              </div>
-              <div>
-                <div
-                  className="flex items-center gap-0.5 text-amber-500"
-                  aria-label="Rated 4.9 out of 5"
-                >
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <IconStar key={i} className="size-4 fill-current" aria-hidden="true" />
-                  ))}
-                  <span className="ml-1.5 text-sm font-semibold text-slate-800">
-                    4.9/5
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500">
-                  Trusted by 3,400+ HR teams
-                </p>
-              </div>
             </motion.div>
           </div>
 

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { IconArrowRight, IconMenu, IconX } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
