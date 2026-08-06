@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { IconArrowRight } from '@tabler/icons-react'
 import { Button } from '../ui'
 import { Container } from './primitives'

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { IconCheck } from '@tabler/icons-react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { Button } from '../ui'
 import { Container, Reveal, SectionHeading } from './primitives'
 import { cn } from '../../lib/cn'
@@ -54,7 +54,7 @@ const PLANS: Array<{
     tagline: 'For multi-tenant organizations',
     monthly: null,
     annual: null,
-    cta: 'Talk to sales',
+    cta: 'Get started',
     features: [
       'Unlimited workspaces',
       'SSO / SAML',
@@ -95,7 +95,7 @@ function Price({
         </motion.p>
       </AnimatePresence>
       <span className="text-sm font-medium text-slate-500">
-        / user / month
+        {billing === 'annual' ? '/ user / month, billed annually' : '/ user / month'}
       </span>
     </div>
   )
@@ -136,7 +136,7 @@ export default function Pricing() {
                 </button>
               ))}
               <span className="mr-1 hidden rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 sm:inline-flex">
-                Save 20%
+                Save 25%
               </span>
             </div>
           </div>
@@ -226,7 +226,8 @@ export default function Pricing() {
 
         <Reveal delay={0.2}>
           <p className="mt-10 text-center text-sm text-slate-500">
-            All plans include a 14-day free trial. No credit card required.
+            Start free on Starter. Upgrade when your team grows. No credit card
+            required.
           </p>
         </Reveal>
       </Container>

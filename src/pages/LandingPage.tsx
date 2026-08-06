@@ -1,11 +1,11 @@
 import Navbar from '../components/landing/Navbar'
 import Hero from '../components/landing/Hero'
-import LogoWall from '../components/landing/LogoWall'
-import StatsBand from '../components/landing/StatsBand'
+import Industries from '../components/landing/Industries'
+import ProductFacts from '../components/landing/ProductFacts'
 import OnboardingJourney from '../components/landing/OnboardingJourney'
 import FeatureBento from '../components/landing/FeatureBento'
 import HowItWorks from '../components/landing/HowItWorks'
-import Testimonials from '../components/landing/Testimonials'
+import RolloutScenarios from '../components/landing/RolloutScenarios'
 import Pricing from '../components/landing/Pricing'
 import FAQ from '../components/landing/FAQ'
 import FinalCTA from '../components/landing/FinalCTA'
@@ -17,12 +17,12 @@ export default function LandingPage() {
       <Navbar />
       <main>
         <Hero />
-        <LogoWall />
-        <StatsBand />
+        <Industries />
+        <ProductFacts />
         <OnboardingJourney />
         <FeatureBento />
         <HowItWorks />
-        <Testimonials />
+        <RolloutScenarios />
         <Pricing />
         <FAQ />
         <FinalCTA />

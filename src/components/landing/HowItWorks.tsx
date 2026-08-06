@@ -25,7 +25,7 @@ const STEPS: Array<{
     Icon: IconUserPlus,
     title: 'Invite your org',
     description:
-      'Add departments and people — one by one or in bulk from CSV. Everyone lands on a guided first day.',
+      'Add departments and people, one by one or in bulk from CSV. Everyone lands on a guided first day.',
   },
   {
     Icon: IconRocket,
