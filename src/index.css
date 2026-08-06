@@ -1,4 +1,4 @@
-@import "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..800;1,14..32,300..800&family=JetBrains+Mono:wght@400;500&display=swap";
+@import "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..800;1,14..32,300..800&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap";
 @import "tailwindcss";
 
 /* ==========================================================================
@@ -14,6 +14,7 @@
   /* Typography — Font Families */
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-display: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   /* Typography — Font Sizes */
   --text-xs: 0.75rem;
@@ -174,6 +175,59 @@
   /* Default Font Families */
   --default-font-family: var(--font-sans);
   --default-mono-font-family: var(--font-mono);
+
+  /* Motion — Landing Animations */
+  --animate-marquee: marquee 46s linear infinite;
+  --animate-marquee-slow: marquee 70s linear infinite;
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-float-delayed: float 7s ease-in-out 1.2s infinite;
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+}
+
+/* --- Edge fade masks for marquees --- */
+@utility mask-fade-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+}
+
+/* --- Dotted grid backdrop --- */
+@utility bg-dot-grid {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(15, 23, 42, 0.08) 1px,
+    transparent 0
+  );
+  background-size: 22px 22px;
 }
 
 /* --------------------------------------------------------------------------
@@ -493,4 +547,22 @@ select {
 
 .pulse-ring {
   animation: pulseRing 2s infinite;
+}
+
+/* --------------------------------------------------------------------------
+   6. REDUCED MOTION
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
