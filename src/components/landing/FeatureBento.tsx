@@ -39,7 +39,7 @@ const BARS = [42, 58, 51, 74, 66, 88, 79]
 const ROLES = ['Owner', 'Admin', 'Manager', 'Employee']
 
 type Feature = {
-  Icon: ComponentType<{ className?: string; 'aria-hidden'?: string | boolean }>
+  Icon: ComponentType<{ className?: string; 'aria-hidden'?: any }>
   title: string
   description: string
   span: string

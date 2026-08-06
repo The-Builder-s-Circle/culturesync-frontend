@@ -11,7 +11,7 @@ import { Container, SectionHeading } from './primitives'
 const EASE = [0.21, 0.47, 0.32, 0.98] as const
 
 const STEPS: Array<{
-  Icon: ComponentType<{ className?: string; 'aria-hidden'?: string | boolean }>
+  Icon: ComponentType<{ className?: string; 'aria-hidden'?: any }>
   title: string
   description: string
 }> = [

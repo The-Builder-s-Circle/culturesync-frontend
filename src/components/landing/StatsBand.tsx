@@ -19,8 +19,9 @@ function CountUp({
   useEffect(() => {
     if (!inView || !ref.current) return
     if (reduce) {
-      setDisplay(value.toLocaleString(undefined, { maximumFractionDigits: decimals }))
-      return
+      const formatted = value.toLocaleString(undefined, { maximumFractionDigits: decimals })
+      const frame = requestAnimationFrame(() => setDisplay(formatted))
+      return () => cancelAnimationFrame(frame)
     }
     const controls = animate(0, value, {
       duration: 1.4,
