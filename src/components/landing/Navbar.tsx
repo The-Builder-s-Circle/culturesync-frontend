@@ -111,7 +111,7 @@ export default function Navbar() {
                     Sign in
                   </Button>
                 </Link>
-                <Link to="/login" onClick={() => setOpen(false)}>
+                <Link to="/auth/register" onClick={() => setOpen(false)}>
                   <Button className="w-full">
                     Start free
                     <IconArrowRight className="size-4" aria-hidden="true" />
