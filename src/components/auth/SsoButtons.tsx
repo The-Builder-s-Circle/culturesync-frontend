@@ -9,18 +9,18 @@ export const SsoButtons: React.FC<SsoButtonsProps> = ({
   dividerText = 'or continue with',
 }) => {
   return (
-    <div className="mt-6">
+    <div className="mt-3">
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-200" />
         </div>
-        <div className="relative flex justify-center text-sm">
+        <div className="relative flex justify-center text-xs">
           <span className="px-2 bg-white text-slate-500">{dividerText}</span>
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-3">
-        <Button variant="secondary" size="md" className="w-full text-slate-700">
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <Button variant="secondary" size="sm" className="w-full text-slate-700">
           <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
             <path
               fill="#4285F4"
@@ -42,7 +42,7 @@ export const SsoButtons: React.FC<SsoButtonsProps> = ({
           Google SSO
         </Button>
 
-        <Button variant="secondary" size="md" className="w-full text-slate-700">
+        <Button variant="secondary" size="sm" className="w-full text-slate-700">
           <svg className="w-4 h-4 mr-2" viewBox="0 0 23 23">
             <path fill="#f35325" d="M1 1h10v10H1z" />
             <path fill="#81bc06" d="M12 1h10v10H12z" />

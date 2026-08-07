@@ -79,18 +79,18 @@ export const RegisterForm: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Create your account</h2>
-        <p className="mt-1 text-sm text-slate-600">Start your 14-day free trial — no credit card required</p>
+      <div className="mb-3">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Create your account</h2>
+        <p className="mt-0.5 text-xs text-slate-600">Start your 14-day free trial — no credit card required</p>
       </div>
 
       {error && (
-        <div className="mb-6 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+        <div className="mb-3 p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
           {error}
         </div>
       )}
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-2.5" onSubmit={handleSubmit}>
         <TextInput
           label="Full name *"
           placeholder="Oriolowo Mustapha"
@@ -137,13 +137,13 @@ export const RegisterForm: React.FC = () => {
           required
         />
 
-        <div className="pt-2">
+        <div className="pt-1">
           <CustomCheckbox
             id="terms"
             checked={agreeTerms}
             onChange={(e) => setAgreeTerms(e.target.checked)}
             label={
-              <span className="text-xs text-slate-600">
+              <span className="text-[11px] text-slate-600">
                 I agree to CultureSync's{' '}
                 <a href="#terms" className="text-indigo-600 font-medium hover:underline">
                   Terms of Service
@@ -160,7 +160,7 @@ export const RegisterForm: React.FC = () => {
         <Button
           type="submit"
           variant="primary"
-          size="lg"
+          size="md"
           className="w-full mt-2"
           isLoading={isLoading}
         >
@@ -168,7 +168,7 @@ export const RegisterForm: React.FC = () => {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-600">
+      <p className="mt-3 text-center text-xs text-slate-600">
         Already have an account?{' '}
         <Link to="/auth/login" className="font-semibold text-indigo-600 hover:text-indigo-500">
           Sign in

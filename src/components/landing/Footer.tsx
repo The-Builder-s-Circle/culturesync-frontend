@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { IconBrandGithub, IconBrandLinkedin, IconBrandX } from '@tabler/icons-react'
-import { BrandMark } from './Navbar'
 import { Container } from './primitives'
+import { Logo } from '../ui'
 
 const COLUMNS = [
   {
@@ -52,9 +52,7 @@ export default function Footer() {
       <Container className="py-16">
         <div className="grid gap-12 lg:grid-cols-[1.3fr_2fr]">
           <div>
-            <div className="[&_span]:!text-white">
-              <BrandMark />
-            </div>
+            <Logo darkVariant />
             <p className="mt-4 max-w-xs text-sm leading-relaxed">
               The multi-tenant HR platform built for modern organizations. Your
               people, one workspace, from day one.

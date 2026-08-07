@@ -43,9 +43,9 @@ export const VerifyOtpForm: React.FC = () => {
 
     const success = await verifyOtp(otpCode)
     if (success) {
-      navigate('/onboarding')
+      navigate('/auth/login')
     } else {
-      setError('Invalid verification code. Use 123456 in this demo.')
+      setError('Invalid verification code. Please enter 6 digits.')
     }
   }
 
