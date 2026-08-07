@@ -9,19 +9,19 @@ export const SsoButtons: React.FC<SsoButtonsProps> = ({
   dividerText = 'or continue with',
 }) => {
   return (
-    <div className="mt-6">
+    <div className="mt-2">
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-200" />
         </div>
-        <div className="relative flex justify-center text-sm">
+        <div className="relative flex justify-center text-[11px]">
           <span className="px-2 bg-white text-slate-500">{dividerText}</span>
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-3">
-        <Button variant="secondary" size="md" className="w-full text-slate-700">
-          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <Button variant="secondary" size="sm" className="w-full text-slate-700 text-xs py-1.5">
+          <svg className="w-3.5 h-3.5 mr-1.5" viewBox="0 0 24 24">
             <path
               fill="#4285F4"
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -42,10 +42,10 @@ export const SsoButtons: React.FC<SsoButtonsProps> = ({
           Google SSO
         </Button>
 
-        <Button variant="secondary" size="md" className="w-full text-slate-700">
-          <svg className="w-4 h-4 mr-2" viewBox="0 0 23 23">
+        <Button variant="secondary" size="sm" className="w-full text-slate-700 text-xs py-1.5">
+          <svg className="w-3.5 h-3.5 mr-1.5" viewBox="0 0 23 23">
             <path fill="#f35325" d="M1 1h10v10H1z" />
-            <path fill="#81bc06" d="M12 1h10v10H12z" />
+            <path fill="#81bc06" d="M12 1h10v10H1z" />
             <path fill="#05a6f0" d="M1 12h10v10H1z" />
             <path fill="#ffba08" d="M12 12h10v10H12z" />
           </svg>
