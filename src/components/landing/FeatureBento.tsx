@@ -77,7 +77,7 @@ const FEATURES: Feature[] = [
     Icon: IconClipboardCheck,
     title: 'Performance reviews',
     description:
-      'Structured appraisals with 360° feedback, ratings, and action plans — ready for every review cycle.',
+      'Structured appraisals with 360° feedback, ratings, and action plans, ready for every review cycle.',
     span: 'lg:col-span-1',
     visual: (
       <div className="flex flex-wrap gap-1.5">
@@ -159,7 +159,7 @@ const FEATURES: Feature[] = [
     Icon: IconChartBar,
     title: 'People analytics',
     description:
-      'Headcount, turnover, and engagement — live dashboards per workspace that your leadership actually reads.',
+      'Headcount, turnover, and engagement in live dashboards per workspace that your leadership actually reads.',
     span: 'lg:col-span-2',
     dark: true,
     visual: (
@@ -275,7 +275,7 @@ export default function FeatureBento() {
         <SectionHeading
           eyebrow="Features"
           title="Everything HR, in one place."
-          description="Six modules that work together — so people data flows from hiring to appraisal without a spreadsheet in sight."
+          description="Six modules that work together, so people data flows from hiring to appraisal without a spreadsheet in sight."
         />
         <div className="mt-14 grid gap-4 sm:gap-5 lg:grid-cols-3">
           {FEATURES.map((feature, i) => (

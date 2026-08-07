@@ -9,7 +9,7 @@ const EASE = [0.21, 0.47, 0.32, 0.98] as const
 const FAQS = [
   {
     q: 'What does multi-tenant mean for us?',
-    a: 'Each organization you manage gets its own isolated workspace — with its own departments, policies, roles, and data. Nothing leaks across tenants, and each one can be branded and configured independently.',
+    a: 'Each organization you manage gets its own isolated workspace with its own departments, policies, roles, and data. Nothing leaks across tenants, and each one can be branded and configured independently.',
   },
   {
     q: 'How long does onboarding actually take?',
@@ -25,11 +25,11 @@ const FAQS = [
   },
   {
     q: 'Do we need IT or engineering to set it up?',
-    a: 'No. CultureSync is built for HR teams. The only optional technical step is SSO on Enterprise — and our team handles that with you in a single call.',
+    a: 'No. CultureSync is built for HR teams. The only optional technical step is SSO on Enterprise, and our team handles that with you in a single call.',
   },
   {
     q: 'What happens if we outgrow our plan?',
-    a: 'Upgrade anytime — you keep all your data and settings. Pricing is per active user per month, and your trial is free for 14 days with no credit card required.',
+    a: 'Upgrade anytime. You keep all your data and settings. Pricing is per active user per month, and you can start free on Starter with no credit card.',
   },
 ]
 
@@ -110,7 +110,7 @@ export default function FAQ() {
                 href="#pricing"
                 className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
               >
-                Talk to our team
+                Compare plans
                 <IconArrowRight className="size-4" aria-hidden="true" />
               </a>
             </Reveal>

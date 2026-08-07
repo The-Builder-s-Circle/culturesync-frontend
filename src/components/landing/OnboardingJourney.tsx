@@ -22,7 +22,7 @@ const STEPS: Array<{
     chip: 'bg-indigo-50 text-indigo-600',
     title: 'Create your workspace',
     description:
-      'Every new organization gets an isolated workspace with its own settings, branding, and data — no cross-tenant leaks, ever.',
+      'Every new organization gets an isolated workspace with its own settings, branding, and data. No cross-tenant leaks, ever.',
     meta: '~1 min',
   },
   {
@@ -30,7 +30,7 @@ const STEPS: Array<{
     chip: 'bg-violet-50 text-violet-600',
     title: 'Set up departments',
     description:
-      'Map your org chart in minutes with visual department cards — no meetings, no spreadsheets, no IT ticket.',
+      'Map your org chart in minutes with visual department cards. No meetings, no spreadsheets, no IT ticket.',
     meta: '~3 min',
   },
   {
@@ -46,7 +46,7 @@ const STEPS: Array<{
     chip: 'bg-amber-50 text-amber-600',
     title: 'Configure HR settings',
     description:
-      'Leave policies, review cycles, and goals — tuned to each organization\u2019s culture, not a one-size template.',
+      'Leave policies, review cycles, and goals, tuned to each organization\u2019s culture, not a one-size template.',
     meta: '~5 min',
   },
 ]
@@ -67,8 +67,8 @@ export default function OnboardingJourney() {
             </Reveal>
             <Reveal delay={0.1}>
               <p className="mt-4 max-w-md text-base leading-relaxed text-slate-600 sm:text-lg">
-                Every new organization gets a guided workspace setup — profile,
-                departments, invites, and HR settings — without a single support
+                Every new organization gets a guided workspace setup: profile,
+                departments, invites, and HR settings, without a single support
                 call.
               </p>
             </Reveal>
@@ -119,7 +119,7 @@ export default function OnboardingJourney() {
                       <p className="font-mono text-xs font-medium tracking-widest text-indigo-600">
                         STEP {String(i + 1).padStart(2, '0')}
                       </p>
-                      <span className="text-[11px] font-medium text-slate-400">
+                      <span className="text-[11px] font-medium text-slate-500">
                         {step.meta}
                       </span>
                     </div>
