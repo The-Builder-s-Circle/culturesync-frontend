@@ -1,7 +1,17 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router'
 import RootLayout from '../layouts/RootLayout'
+import OnboardingLayout from '../layouts/OnboardingLayout'
 import LandingPage from '../pages/LandingPage'
+import {
+  OrganizationPage,
+  DepartmentsPage,
+  JobTitles,
+  EmployeeImportPage,
+  InviteTeamPage,
+  HrConfigPage,
+  CompletePage,
+} from '../pages/onboarding'
 import { RegisterPage, VerifyOtpPage, SignInPage } from '../pages/auth'
 import ProtectedRoute from './ProtectedRoute'
 
@@ -24,6 +34,26 @@ export default function AppRoutes() {
         <Route path="/auth/verify-otp" element={<VerifyOtpPage />} />
         <Route path="/auth/login" element={<SignInPage />} />
         <Route path="/login" element={<SignInPage />} />
+
+        {/* Onboarding flow */}
+        <Route
+          path="/onboarding"
+          element={
+            <ProtectedRoute>
+              <OnboardingLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/onboarding/organization" replace />} />
+          <Route path="organization" element={<OrganizationPage />} />
+          <Route path="departments" element={<DepartmentsPage />} />
+          <Route path="job-titles" element={<JobTitles />} />
+          <Route path="import" element={<EmployeeImportPage />} />
+          <Route path="invite" element={<InviteTeamPage />} />
+          <Route path="hr-config" element={<HrConfigPage />} />
+          <Route path="complete" element={<CompletePage />} />
+        </Route>
+
         <Route element={<RootLayout />}>
           <Route
             path="/dashboard"
@@ -34,6 +64,7 @@ export default function AppRoutes() {
             }
           />
         </Route>
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

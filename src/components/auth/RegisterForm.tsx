@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router'
 import { Button, TextInput, CustomCheckbox } from '../ui'
 import { PasswordInput } from './PasswordInput'
 import { calculatePasswordScore } from './passwordUtils'
