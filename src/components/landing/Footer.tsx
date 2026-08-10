@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { IconBrandGithub, IconBrandLinkedin, IconBrandX } from '@tabler/icons-react'
 import { Container } from './primitives'
 import { Logo } from '../ui'
