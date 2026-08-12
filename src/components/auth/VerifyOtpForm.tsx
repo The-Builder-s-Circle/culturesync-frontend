@@ -41,11 +41,16 @@ export const VerifyOtpForm: React.FC = () => {
       return
     }
 
-    const success = await verifyOtp(otpCode)
-    if (success) {
-      navigate('/auth/login')
-    } else {
-      setError('Invalid verification code. Please enter 6 digits.')
+    try {
+      const success = await verifyOtp(otpCode)
+      if (success) {
+        navigate('/auth/login')
+      } else {
+        setError('Invalid verification code. Please check your inbox.')
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Verification failed. Please try again.'
+      setError(message)
     }
   }
 
@@ -54,11 +59,16 @@ export const VerifyOtpForm: React.FC = () => {
     setError(null)
     setSuccessMessage(null)
 
-    const success = await resendOtp()
-    if (success) {
-      setSuccessMessage('New code sent! Check your inbox.')
-      setResendCooldown(60)
-      setExpirySeconds(300)
+    try {
+      const success = await resendOtp()
+      if (success) {
+        setSuccessMessage('New code sent! Check your inbox.')
+        setResendCooldown(60)
+        setExpirySeconds(300)
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to resend code.'
+      setError(message)
     }
   }
 

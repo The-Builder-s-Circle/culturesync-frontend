@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router'
-import { Button, TextInput, CustomCheckbox } from '../ui'
+import { Button, TextInput, PhoneInput, CustomCheckbox } from '../ui'
 import { PasswordInput } from './PasswordInput'
 import { calculatePasswordScore } from './passwordUtils'
 import { useAuth } from '../../store'
@@ -12,6 +12,7 @@ export const RegisterForm: React.FC = () => {
 
   const [fullName, setFullName] = useState('')
   const [workEmail, setWorkEmail] = useState('')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -22,8 +23,15 @@ export const RegisterForm: React.FC = () => {
     e.preventDefault()
     setError(null)
 
-    if (!fullName || !workEmail || !companyName || !password || !confirmPassword) {
+    if (!fullName || !workEmail || !phoneNumber || !companyName || !password || !confirmPassword) {
       setError('Please fill in all required fields.')
+      return
+    }
+
+    // Validate phone number digit count (min 7 digits)
+    const digitsOnly = phoneNumber.replace(/\D/g, '')
+    if (digitsOnly.length < 7) {
+      setError('Please enter a valid phone number.')
       return
     }
 
@@ -43,17 +51,23 @@ export const RegisterForm: React.FC = () => {
       return
     }
 
-    const success = await register({
-      fullName,
-      workEmail,
-      companyName,
-      password,
-    })
+    try {
+      const success = await register({
+        fullName,
+        workEmail,
+        phoneNumber,
+        companyName,
+        password,
+      })
 
-    if (success) {
-      navigate('/auth/verify-otp')
-    } else {
-      setError('Registration failed. Please try again.')
+      if (success) {
+        navigate('/auth/verify-otp')
+      } else {
+        setError('Registration failed. Please verify your information.')
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Registration failed. Please try again.'
+      setError(message)
     }
   }
 
@@ -78,8 +92,8 @@ export const RegisterForm: React.FC = () => {
   const passwordMismatch = Boolean(confirmPassword && confirmPassword !== password)
 
   return (
-    <div>
-      <div className="mb-2 sm:mb-3">
+    <div className="font-sans">
+      <div className="mb-2 sm:mb-2.5">
         <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Create your account</h2>
         <p className="text-[11px] sm:text-xs text-slate-500">Start your 14-day free trial — no credit card required</p>
       </div>
@@ -107,6 +121,13 @@ export const RegisterForm: React.FC = () => {
           value={workEmail}
           onChange={(e) => setWorkEmail(e.target.value)}
           leftIcon={mailIcon}
+          required
+        />
+
+        <PhoneInput
+          label="Phone number *"
+          value={phoneNumber}
+          onChange={setPhoneNumber}
           required
         />
 

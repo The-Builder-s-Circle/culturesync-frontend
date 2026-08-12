@@ -1,5 +1,7 @@
 export * from './Button'
 export * from './TextInput'
+export * from './PhoneInput'
+export * from './phoneUtils'
 export * from './SelectDropdown'
 export * from './CustomCheckbox'
 export * from './ToggleSwitch'

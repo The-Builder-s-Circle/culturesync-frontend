@@ -12,6 +12,7 @@ export interface User {
 export interface RegisterPayload {
   fullName: string
   workEmail: string
+  phoneNumber?: string
   companyName: string
   password?: string
 }
