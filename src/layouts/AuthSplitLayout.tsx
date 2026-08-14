@@ -1,7 +1,7 @@
 import React from 'react'
 import type { ReactNode } from 'react'
-import { Logo } from '../ui/Logo'
-import { AuthSidebar } from './AuthSidebar'
+import { Logo } from '../components/ui/Logo'
+import { AuthSidebar } from '../components/auth/AuthSidebar'
 
 export interface AuthSplitLayoutProps {
   children: ReactNode

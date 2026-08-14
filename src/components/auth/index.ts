@@ -1,4 +1,4 @@
-export * from './AuthSplitLayout'
+export * from '../../layouts/AuthSplitLayout'
 export * from './AuthSidebar'
 export * from './PasswordInput'
 export * from './PasswordStrength'

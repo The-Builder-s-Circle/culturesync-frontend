@@ -5,6 +5,7 @@ import { Button, TextInput, CustomCheckbox } from '../ui'
 import { PasswordInput } from './PasswordInput'
 import { useAuth } from '../../store'
 import { PasswordResetModal } from './PasswordResetModal'
+import { tenantApi } from '../../api'
 
 export const SignInForm: React.FC = () => {
   const navigate = useNavigate()
@@ -14,6 +15,7 @@ export const SignInForm: React.FC = () => {
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const [isResetModalOpen, setIsResetModalOpen] = useState(false)
 
   const handleSubmit = async (e: FormEvent) => {
@@ -28,13 +30,33 @@ export const SignInForm: React.FC = () => {
     try {
       const success = await login({ email, password, rememberMe })
       if (success) {
-        navigate('/dashboard')
+        // Check onboarding completion before deciding redirect
+        setIsRedirecting(true)
+        try {
+          const progressRes = await tenantApi.getOnboardingProgress()
+          const progressData = progressRes.data as
+            | { isCompleted?: boolean; percentageComplete?: number; percentage?: number }
+            | undefined
+
+          const pct = progressData?.percentageComplete ?? progressData?.percentage ?? 0
+          if (progressData?.isCompleted === true || pct >= 100) {
+            navigate('/dashboard')
+          } else {
+            navigate('/onboarding')
+          }
+        } catch {
+          // If progress check fails (e.g. cold start), default to onboarding
+          // The onboarding resume flow will handle routing to the correct step
+          navigate('/onboarding')
+        }
       } else {
         setError('Invalid email or password.')
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Invalid email or password.'
       setError(message)
+    } finally {
+      setIsRedirecting(false)
     }
   }
 
@@ -105,7 +127,7 @@ export const SignInForm: React.FC = () => {
           variant="primary"
           size="lg"
           className="w-full mt-4"
-          isLoading={isLoading}
+          isLoading={isLoading || isRedirecting}
         >
           Sign in
         </Button>

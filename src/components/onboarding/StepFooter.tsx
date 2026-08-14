@@ -9,6 +9,7 @@ export interface StepFooterProps {
   continueTo?: string
   continueLabel?: string
   continueDisabled?: boolean
+  isLoading?: boolean
   onContinue?: () => void
   children?: React.ReactNode
 }
@@ -20,6 +21,7 @@ export function StepFooter({
   continueTo,
   continueLabel = 'Continue',
   continueDisabled = false,
+  isLoading = false,
   onContinue,
   children,
 }: StepFooterProps) {
@@ -27,7 +29,7 @@ export function StepFooter({
     <div className="mt-8 flex flex-col gap-4 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
       {backTo ? (
         <Link to={backTo}>
-          <Button variant="secondary" onClick={onBack}>
+          <Button variant="secondary" onClick={onBack} disabled={isLoading}>
             <IconArrowLeft className="size-4" aria-hidden="true" />
             {backLabel}
           </Button>
@@ -39,10 +41,14 @@ export function StepFooter({
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
         {children}
         {continueTo ? (
-          <Link to={continueTo} className={continueDisabled ? 'pointer-events-none' : ''}>
+          <Link
+            to={continueTo}
+            className={continueDisabled || isLoading ? 'pointer-events-none' : ''}
+          >
             <Button
               variant="primary"
               disabled={continueDisabled}
+              isLoading={isLoading}
               onClick={onContinue}
               className="w-full sm:w-auto"
             >
@@ -55,6 +61,7 @@ export function StepFooter({
             <Button
               variant="primary"
               disabled={continueDisabled}
+              isLoading={isLoading}
               onClick={onContinue}
               className="w-full sm:w-auto"
             >

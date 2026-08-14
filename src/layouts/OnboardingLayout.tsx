@@ -2,12 +2,17 @@ import { Outlet, NavLink, useLocation } from 'react-router'
 import { Logo } from '../components/ui'
 import { StepDot } from '../components/ui'
 import { ONBOARDING_STEPS, findStepIndex } from '../pages/onboarding/steps'
+import { useOnboarding, useAuth } from '../store'
 
 export default function OnboardingLayout() {
   const { pathname } = useLocation()
   const activeIndex = findStepIndex(pathname)
   const activeStep = ONBOARDING_STEPS[activeIndex]
-  const percentComplete = Math.round(((activeIndex + 1) / ONBOARDING_STEPS.length) * 100)
+  const { completedSteps, percentComplete } = useOnboarding()
+  const { user } = useAuth()
+
+  const companyDisplayName = user?.companyName || 'Your Organization'
+  const companyInitial = companyDisplayName.charAt(0).toUpperCase() || 'C'
 
   return (
     <div className="min-h-screen bg-canvas font-sans md:flex">
@@ -24,14 +29,16 @@ export default function OnboardingLayout() {
           </p>
           <nav className="space-y-1">
             {ONBOARDING_STEPS.map((step, i) => {
-              const status =
-                i < activeIndex ? 'complete' : i === activeIndex ? 'active' : 'pending'
+              const isDone = completedSteps.includes(step.id)
+              const isActive = i === activeIndex
+              const status = isDone ? 'complete' : isActive ? 'active' : 'pending'
+
               return (
                 <NavLink
                   key={step.id}
                   to={step.path}
-                  className={({ isActive }) =>
-                    `nav-item ${isActive ? 'active' : ''}`.trim()
+                  className={({ isActive: isLinkActive }) =>
+                    `nav-item ${isLinkActive ? 'active' : ''}`.trim()
                   }
                 >
                   <StepDot step={step.number} status={status} />
@@ -50,11 +57,11 @@ export default function OnboardingLayout() {
         <div className="border-t border-slate-200 p-4">
           <div className="flex items-center gap-3">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100 font-display text-sm font-bold text-indigo-600">
-              M
+              {companyInitial}
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-slate-800">
-                Meridian Health Partners
+                {companyDisplayName}
               </p>
               <p className="text-xs text-slate-400">Configuring…</p>
             </div>

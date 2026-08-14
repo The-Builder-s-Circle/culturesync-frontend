@@ -14,6 +14,7 @@ import {
 } from '../pages/onboarding'
 import { RegisterPage, VerifyOtpPage, SignInPage } from '../pages/auth'
 import ProtectedRoute from './ProtectedRoute'
+import { OnboardingProvider, useOnboarding } from '../store'
 
 const DashboardPage = lazy(() => import('../pages/DashboardPage'))
 
@@ -23,6 +24,15 @@ function PageFallback() {
       Loading...
     </div>
   )
+}
+
+function OnboardingResumeRedirect() {
+  const { getResumeRoute, isLoadingProgress } = useOnboarding()
+  if (isLoadingProgress) {
+    return <PageFallback />
+  }
+  const resumePath = getResumeRoute()
+  return <Navigate to={resumePath} replace />
 }
 
 export default function AppRoutes() {
@@ -40,11 +50,13 @@ export default function AppRoutes() {
           path="/onboarding"
           element={
             <ProtectedRoute>
-              <OnboardingLayout />
+              <OnboardingProvider>
+                <OnboardingLayout />
+              </OnboardingProvider>
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/onboarding/organization" replace />} />
+          <Route index element={<OnboardingResumeRedirect />} />
           <Route path="organization" element={<OrganizationPage />} />
           <Route path="departments" element={<DepartmentsPage />} />
           <Route path="job-titles" element={<JobTitles />} />
