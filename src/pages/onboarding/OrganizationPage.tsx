@@ -1,7 +1,10 @@
-import { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
+import { useNavigate } from 'react-router'
 import { SelectDropdown, TextInput } from '../../components/ui'
 import { StepFooter } from '../../components/onboarding/StepFooter'
 import { IconUpload } from '@tabler/icons-react'
+import { useAuth, useOnboarding } from '../../store'
+import { tenantApi } from '../../api'
 
 const INDUSTRIES = [
   'Healthcare & Life Sciences',
@@ -48,18 +51,83 @@ const CURRENCIES = [
   'AUD — Australian Dollar',
 ]
 
+const STORAGE_ORG_DRAFT_KEY = 'culturesync_org_draft'
+
 export default function OrganizationPage() {
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const { markStepComplete, setTenantId } = useOnboarding()
+
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [form, setForm] = useState({
-    companyName: '',
-    industry: '',
-    companySize: '',
-    hqLocation: '',
-    timezone: '',
-    currency: '',
-    website: '',
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const [form, setForm] = useState(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_ORG_DRAFT_KEY)
+      if (stored) return JSON.parse(stored)
+    } catch {
+      // fallback
+    }
+    return {
+      companyName: user?.companyName || '',
+      industry: '',
+      companySize: '',
+      hqLocation: '',
+      timezone: 'America/New_York (UTC-5)',
+      currency: 'USD — US Dollar',
+      website: '',
+    }
   })
+
+  // Pre-populate if tenant lookup exists
+  useEffect(() => {
+    let isMounted = true
+    const loadTenantLookup = async () => {
+      try {
+        const res = await tenantApi.lookup()
+        if ((res.isSuccess || res.succeeded) && res.data) {
+          const data = res.data as {
+            tenantId?: string
+            id?: string
+            name?: string
+            companyName?: string
+            industry?: string
+            companySize?: string
+            hqLocation?: string
+            timeZoneId?: string
+            defaultCurrency?: string
+            logoUrl?: string
+          }
+          if (data.tenantId || data.id) {
+            setTenantId(data.tenantId || data.id || null)
+          }
+          if (isMounted) {
+            setForm((prev: typeof form) => ({
+              ...prev,
+              companyName: data.name || data.companyName || prev.companyName,
+              industry: data.industry || prev.industry,
+              companySize: data.companySize || prev.companySize,
+              hqLocation: data.hqLocation || prev.hqLocation,
+              timezone: data.timeZoneId || prev.timezone,
+              currency: data.defaultCurrency || prev.currency,
+            }))
+            if (data.logoUrl) {
+              setLogoPreview(data.logoUrl)
+            }
+          }
+        }
+      } catch {
+        // Deferred if lookup offline or warming up
+      }
+    }
+    loadTenantLookup()
+    return () => {
+      isMounted = false
+    }
+  }, [setTenantId])
 
   const requiredFilled =
     form.companyName.trim() !== '' &&
@@ -68,12 +136,68 @@ export default function OrganizationPage() {
     form.timezone !== ''
 
   const update = (field: keyof typeof form, value: string) =>
-    setForm((prev) => ({ ...prev, [field]: value }))
+    setForm((prev: typeof form) => {
+      const next = { ...prev, [field]: value }
+      try {
+        localStorage.setItem(STORAGE_ORG_DRAFT_KEY, JSON.stringify(next))
+      } catch (e) {
+        console.warn('Failed to save draft organization profile', e)
+      }
+      return next
+    })
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setLogoFile(file)
     setLogoPreview(URL.createObjectURL(file))
+  }
+
+  const handleContinue = async () => {
+    setError(null)
+    if (!requiredFilled) {
+      setError('Please fill in all required fields.')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      // Auto-generate URL slug from company name
+      const slug =
+        form.companyName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)+/g, '') || 'organization'
+
+      const formData = new FormData()
+      if (logoFile) {
+        formData.append('image', logoFile)
+      }
+      formData.append('Industry', form.industry)
+      formData.append('CompanySize', form.companySize)
+      formData.append('HQLocation', form.hqLocation.trim() || 'Headquarters')
+      formData.append('TimeZoneId', form.timezone)
+      formData.append('DefaultCurrency', form.currency || 'USD — US Dollar')
+      formData.append('Slug', slug)
+
+      const res = await tenantApi.setupProfile(formData)
+      const isOk = Boolean(res.isSuccess || res.succeeded)
+
+      if (isOk) {
+        markStepComplete('organization')
+        navigate('/onboarding/departments')
+      } else {
+        setError(res.message || 'Failed to update organization profile. Please try again.')
+      }
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Failed to update organization profile. Please try again.'
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -84,6 +208,12 @@ export default function OrganizationPage() {
       <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base">
         Tell us about your company so we can configure CultureSync for your team.
       </p>
+
+      {error && (
+        <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs sm:text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Logo upload */}
       <div className="mt-8">
@@ -171,7 +301,13 @@ export default function OrganizationPage() {
         />
       </div>
 
-      <StepFooter backTo="/auth/login" backLabel="Back to login" continueTo="/onboarding/departments" continueDisabled={!requiredFilled} />
+      <StepFooter
+        backTo="/auth/login"
+        backLabel="Back to login"
+        onContinue={handleContinue}
+        continueDisabled={!requiredFilled}
+        isLoading={isSubmitting}
+      />
     </div>
   )
 }

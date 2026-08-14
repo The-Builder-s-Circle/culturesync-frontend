@@ -5,6 +5,7 @@ export interface User {
   fullName: string
   email: string
   companyName: string
+  tenantId?: string
   role: 'admin' | 'hr_manager' | 'employee'
   isVerified: boolean
 }
@@ -26,6 +27,7 @@ export interface LoginPayload {
 export interface AuthContextType {
   user: User | null
   token: string | null
+  tenantId: string | null
   pendingOtpEmail: string | null
   isAuthenticated: boolean
   isLoading: boolean

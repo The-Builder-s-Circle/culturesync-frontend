@@ -6,11 +6,20 @@ import { authApi, STORAGE_TOKEN_KEY } from '../api'
 
 const STORAGE_USER_KEY = 'culturesync_auth_user'
 const STORAGE_OTP_EMAIL_KEY = 'culturesync_pending_otp_email'
+const STORAGE_TENANT_ID_KEY = 'culturesync_tenant_id'
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => {
     try {
       return localStorage.getItem(STORAGE_TOKEN_KEY)
+    } catch {
+      return null
+    }
+  })
+
+  const [tenantId, setTenantId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(STORAGE_TENANT_ID_KEY)
     } catch {
       return null
     }
@@ -118,15 +127,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const isSuccessful = Boolean(res.isSuccess || res.succeeded)
       if (isSuccessful) {
-        // Extract token & user info from API response data if returned, else set active user state
-        const apiData = res.data as { token?: string; user?: User } | undefined
+        // Extract token, tenantId & user info from API response data if returned
+        const apiData = res.data as
+          | { token?: string; tenantId?: string; user?: User }
+          | undefined
         const authToken = apiData?.token || `token_${Date.now()}`
+        const resolvedTenantId = apiData?.tenantId || apiData?.user?.tenantId || null
+
+        if (resolvedTenantId) {
+          setTenantId(resolvedTenantId)
+          localStorage.setItem(STORAGE_TENANT_ID_KEY, resolvedTenantId)
+        }
 
         const loggedInUser: User = apiData?.user || {
           id: user?.id || `user_${Date.now()}`,
           fullName: user?.fullName || 'Admin User',
           email: payload.email,
           companyName: user?.companyName || 'Organization',
+          tenantId: resolvedTenantId || undefined,
           role: 'admin',
           isVerified: true,
         }
@@ -153,9 +171,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     setUser(null)
     setToken(null)
+    setTenantId(null)
     setPendingOtpEmail(null)
     localStorage.removeItem(STORAGE_TOKEN_KEY)
     localStorage.removeItem(STORAGE_USER_KEY)
+    localStorage.removeItem(STORAGE_TENANT_ID_KEY)
     sessionStorage.removeItem(STORAGE_OTP_EMAIL_KEY)
   }
 
@@ -169,6 +189,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         user,
         token,
+        tenantId,
         pendingOtpEmail,
         isAuthenticated: Boolean(token && user?.isVerified),
         isLoading,
