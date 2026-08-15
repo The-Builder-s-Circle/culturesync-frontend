@@ -1,134 +1,418 @@
-import { useState } from 'react'
-import { Button, SelectDropdown, TextInput } from '../../components/ui'
-import { StepFooter } from '../../components/onboarding/StepFooter'
-import { IconPlus, IconTrash, IconX } from '@tabler/icons-react'
+import { useState, useMemo, useCallback } from 'react'
+import { useNavigate } from 'react-router'
+import { StepFooter, StepHeader, JobTitleAccordion } from '../../components/onboarding'
+import { useOnboarding, useAuth } from '../../store'
+import { jobTitleApi, tenantApi } from '../../api'
 
-const DEPARTMENTS = [
-  'Engineering',
-  'Product & Design',
-  'Marketing',
-  'Sales',
-  'People & Culture',
-  'Finance',
-  'Operations',
-  'Customer Success',
-]
+const STORAGE_SELECTED_DEPTS_KEY = 'culturesync_selected_departments'
+const STORAGE_CUSTOM_DEPTS_KEY = 'culturesync_custom_departments'
+const STORAGE_JOB_TITLES_KEY = 'culturesync_job_titles'
 
-const DEFAULT_TITLES: Record<string, string[]> = {
-  Engineering: ['Software Engineer', 'Senior Software Engineer', 'Engineering Manager'],
-  'Product & Design': ['Product Designer', 'Product Manager'],
-  Marketing: ['Marketing Manager'],
-  Sales: ['Account Executive'],
-  'People & Culture': ['HR Business Partner'],
-  Finance: ['Accountant'],
-  Operations: ['Operations Manager'],
-  'Customer Success': ['Customer Success Manager'],
+const PREDEFINED_ID_TO_NAME: Record<string, string> = {
+  eng: 'Engineering',
+  prod: 'Product & Design',
+  sales: 'Sales & Revenue',
+  mkt: 'Marketing',
+  hr: 'Human Resources',
+  fin: 'Finance & Accounting',
+  cs: 'Customer Success',
+  legal: 'Legal & Compliance',
+  ops: 'Operations',
+  exec: 'Executive',
+  data: 'Data & Analytics',
+  sec: 'Security',
+  it: 'IT & Infrastructure',
+  rd: 'Research & Development',
+  biz: 'Business Development',
+}
+
+const DEPARTMENT_TITLE_SUGGESTIONS: Record<string, string[]> = {
+  'Engineering': [
+    'Software Engineer',
+    'Senior Software Engineer',
+    'Frontend Developer',
+    'Backend Developer',
+    'DevOps Engineer',
+    'Engineering Manager',
+    'QA Engineer',
+    'Tech Lead',
+    'VP of Engineering',
+    'CTO',
+  ],
+  'Product & Design': [
+    'Product Manager',
+    'Senior Product Manager',
+    'Product Designer',
+    'UI/UX Designer',
+    'Design Lead',
+    'Head of Product',
+  ],
+  'Sales & Revenue': [
+    'Sales Representative',
+    'Account Executive',
+    'Senior Account Executive',
+    'Sales Manager',
+    'Business Development Manager',
+    'Director of Sales',
+    'VP of Sales',
+    'Chief Revenue Officer',
+  ],
+  'Marketing': [
+    'Marketing Specialist',
+    'Content Strategist',
+    'Growth Marketer',
+    'SEO Specialist',
+    'Marketing Manager',
+    'Director of Marketing',
+    'CMO',
+  ],
+  'Human Resources': [
+    'HR Specialist',
+    'HR Generalist',
+    'Talent Acquisition Specialist',
+    'People Operations Lead',
+    'HR Manager',
+    'Head of People',
+  ],
+  'Finance & Accounting': [
+    'Accountant',
+    'Financial Analyst',
+    'Senior Accountant',
+    'Accounting Manager',
+    'Finance Director',
+    'Controller',
+    'CFO',
+  ],
+  'Customer Success': [
+    'Customer Support Specialist',
+    'Customer Success Manager',
+    'Implementation Specialist',
+    'Customer Support Lead',
+    'Director of Customer Success',
+  ],
+  'Legal & Compliance': [
+    'Legal Counsel',
+    'Compliance Officer',
+    'Senior Legal Counsel',
+    'Head of Compliance',
+    'General Counsel',
+  ],
+  'Operations': [
+    'Operations Coordinator',
+    'Operations Manager',
+    'Director of Operations',
+    'COO',
+  ],
+  'Executive': [
+    'CEO',
+    'Chief Operating Officer',
+    'Chief Technology Officer',
+    'Chief Financial Officer',
+    'Managing Director',
+  ],
+  'Data & Analytics': [
+    'Data Analyst',
+    'Data Scientist',
+    'BI Analyst',
+    'Data Engineer',
+    'Head of Data',
+  ],
+  'Security': [
+    'Security Analyst',
+    'Cybersecurity Engineer',
+    'Information Security Manager',
+    'CISO',
+  ],
+  'IT & Infrastructure': [
+    'IT Support Specialist',
+    'Systems Administrator',
+    'Network Engineer',
+    'IT Manager',
+    'Head of IT',
+  ],
+  'Research & Development': [
+    'R&D Specialist',
+    'Research Scientist',
+    'R&D Engineer',
+    'Head of R&D',
+  ],
+  'Business Development': [
+    'Business Development Representative',
+    'Partnership Manager',
+    'Strategic Accounts Manager',
+    'Director of Business Development',
+  ],
+}
+
+interface StoredDeptTitles {
+  titles: string[]
+  defaultTitles: string[]
+  customTitles: string[]
 }
 
 export default function JobTitles() {
-  const [titles, setTitles] = useState<Record<string, string[]>>(DEFAULT_TITLES)
-  const [draftDepartment, setDraftDepartment] = useState('')
-  const [draftTitle, setDraftTitle] = useState('')
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const { tenantId, setTenantId, markStepComplete } = useOnboarding()
 
-  const addTitle = () => {
-    const dept = draftDepartment
-    const title = draftTitle.trim()
-    if (!dept || !title) return
-    setTitles((prev) => ({ ...prev, [dept]: [...(prev[dept] ?? []), title] }))
-    setDraftTitle('')
+  // 1. Resolve departments chosen by user in previous onboarding step
+  const activeDepartments = useMemo<string[]>(() => {
+    try {
+      const storedPredefined = localStorage.getItem(STORAGE_SELECTED_DEPTS_KEY)
+      const storedCustom = localStorage.getItem(STORAGE_CUSTOM_DEPTS_KEY)
+
+      const predefinedIds = storedPredefined ? (JSON.parse(storedPredefined) as string[]) : []
+      const customDepts = storedCustom ? (JSON.parse(storedCustom) as string[]) : []
+
+      const predefinedNames = predefinedIds
+        .map((id) => PREDEFINED_ID_TO_NAME[id])
+        .filter(Boolean)
+
+      const merged = Array.from(new Set([...predefinedNames, ...customDepts]))
+      if (merged.length > 0) return merged
+    } catch {
+      // fallback
+    }
+    // Fallback if user arrived directly
+    return ['Business Development', 'Operations', 'Sales & Revenue']
+  }, [])
+
+  // 2. Department titles state (restored from localStorage)
+  const [deptTitles, setDeptTitles] = useState<Record<string, StoredDeptTitles>>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_JOB_TITLES_KEY)
+      if (stored) return JSON.parse(stored)
+    } catch {
+      // fallback
+    }
+    return {}
+  })
+
+  // 3. Open/collapsed accordion state
+  const [openDepts, setOpenDepts] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {}
+    activeDepartments.forEach((dept, i) => {
+      initial[dept] = i === 1 || activeDepartments.length === 1
+    })
+    return initial
+  })
+
+  // 4. Draft custom input per department
+  const [draftInputs, setDraftInputs] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const toggleAccordion = (dept: string) => {
+    setOpenDepts((prev) => ({ ...prev, [dept]: !prev[dept] }))
   }
 
-  const removeTitle = (dept: string, title: string) =>
-    setTitles((prev) => ({
-      ...prev,
-      [dept]: (prev[dept] ?? []).filter((t) => t !== title),
-    }))
+  const persistTitles = useCallback((next: Record<string, StoredDeptTitles>) => {
+    try {
+      localStorage.setItem(STORAGE_JOB_TITLES_KEY, JSON.stringify(next))
+    } catch (e) {
+      console.warn('Failed to persist job titles', e)
+    }
+  }, [])
 
-  const totalTitles = Object.values(titles).reduce((sum, list) => sum + list.length, 0)
+  const addSuggestion = (dept: string, title: string) => {
+    setDeptTitles((prev) => {
+      const current = prev[dept] || { titles: [], defaultTitles: [], customTitles: [] }
+      if (current.titles.includes(title)) return prev
+
+      const next = {
+        ...prev,
+        [dept]: {
+          titles: [...current.titles, title],
+          defaultTitles: [...current.defaultTitles, title],
+          customTitles: current.customTitles,
+        },
+      }
+      persistTitles(next)
+      return next
+    })
+  }
+
+  const addCustomTitle = (dept: string) => {
+    const trimmed = (draftInputs[dept] || '').trim()
+    if (!trimmed) return
+
+    setDeptTitles((prev) => {
+      const current = prev[dept] || { titles: [], defaultTitles: [], customTitles: [] }
+      if (current.titles.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
+        return prev
+      }
+
+      const standardSuggestions = DEPARTMENT_TITLE_SUGGESTIONS[dept] || []
+      const isStandard = standardSuggestions.some(
+        (s) => s.toLowerCase() === trimmed.toLowerCase()
+      )
+
+      const next = {
+        ...prev,
+        [dept]: {
+          titles: [...current.titles, trimmed],
+          defaultTitles: isStandard
+            ? [...current.defaultTitles, trimmed]
+            : current.defaultTitles,
+          customTitles: isStandard
+            ? current.customTitles
+            : [...current.customTitles, trimmed],
+        },
+      }
+      persistTitles(next)
+      return next
+    })
+
+    setDraftInputs((prev) => ({ ...prev, [dept]: '' }))
+  }
+
+  const removeTitle = (dept: string, title: string) => {
+    setDeptTitles((prev) => {
+      const current = prev[dept]
+      if (!current) return prev
+
+      const next = {
+        ...prev,
+        [dept]: {
+          titles: current.titles.filter((t) => t !== title),
+          defaultTitles: current.defaultTitles.filter((t) => t !== title),
+          customTitles: current.customTitles.filter((t) => t !== title),
+        },
+      }
+      persistTitles(next)
+      return next
+    })
+  }
+
+  const totalTitlesCount = useMemo(() => {
+    return Object.values(deptTitles).reduce((sum, item) => sum + (item.titles?.length || 0), 0)
+  }, [deptTitles])
+
+  const handleContinue = async () => {
+    setError(null)
+    if (totalTitlesCount === 0) {
+      setError('Please add at least one job title to continue.')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      let activeTenantId: string | null = tenantId || user?.tenantId || null
+      if (!activeTenantId) {
+        const lookup = await tenantApi.lookup()
+        const lookupData = lookup.data as { tenantId?: string; id?: string } | undefined
+        const resolvedId = lookupData?.tenantId || lookupData?.id || null
+        if (resolvedId) {
+          activeTenantId = resolvedId
+          setTenantId(resolvedId)
+        }
+      }
+
+      if (!activeTenantId) {
+        throw new Error('Tenant identifier not found. Please complete previous setup steps.')
+      }
+
+      const allDefaultTitles: string[] = []
+      const allCustomTitles: string[] = []
+
+      Object.values(deptTitles).forEach((d) => {
+        d.defaultTitles?.forEach((t) => {
+          if (!allDefaultTitles.includes(t)) allDefaultTitles.push(t)
+        })
+        d.customTitles?.forEach((t) => {
+          if (!allCustomTitles.includes(t)) allCustomTitles.push(t)
+        })
+      })
+
+      const payload = {
+        defaultJobTitles: allDefaultTitles.map((name) => ({
+          name,
+          gradeLevel: null,
+          description: null,
+        })),
+        customJobTitles: allCustomTitles.map((name) => ({
+          name,
+          gradeLevel: null,
+          description: null,
+        })),
+      }
+
+      const res = await jobTitleApi.createJobTitles(activeTenantId, payload)
+      const isOk = Boolean(res.isSuccess || res.succeeded)
+
+      if (isOk) {
+        markStepComplete('job-titles')
+        navigate('/onboarding/import')
+      } else {
+        const msg =
+          (res.errors && res.errors.join('. ')) ||
+          res.message ||
+          'Failed to save job titles. Please try again.'
+        setError(msg)
+      }
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to save job titles. Please try again.'
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div>
-      <h2 className="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-        Job Titles
-      </h2>
-      <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base">
-        Define the job titles used across your organization. Titles help route
-        approvals, reviews, and permissions.
-      </p>
+      {/* Header */}
+      <StepHeader
+        title="Job titles"
+        description="Add job titles for each department. We pre-populated suggestions you can customize."
+      />
 
-      {/* Add title */}
-      <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row">
-        <SelectDropdown
-          label="Department"
-          placeholder="Select department"
-          options={DEPARTMENTS.map((d) => ({ label: d, value: d }))}
-          value={draftDepartment}
-          onChange={(e) => setDraftDepartment(e.target.value)}
-          className="sm:max-w-[240px]"
-        />
-        <TextInput
-          label="Job title"
-          placeholder="e.g. Staff Engineer"
-          value={draftTitle}
-          onChange={(e) => setDraftTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              addTitle()
-            }
-          }}
-        />
-        <div className="flex items-end">
-          <Button
-            variant="secondary"
-            onClick={addTitle}
-            disabled={!draftDepartment || !draftTitle.trim()}
-          >
-            <IconPlus className="size-4" aria-hidden="true" />
-            Add title
-          </Button>
-        </div>
-      </div>
-
-      {/* Title groups */}
-      <div className="mt-8 space-y-6">
-        {Object.entries(titles)
-          .filter(([, list]) => list.length > 0)
-          .map(([dept, list]) => (
-            <div key={dept}>
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-                {dept} · {list.length}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {list.map((title) => (
-                  <span
-                    key={title}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white py-1.5 pl-3 pr-2 text-sm font-medium text-slate-700"
-                  >
-                    {title}
-                    <button
-                      type="button"
-                      onClick={() => removeTitle(dept, title)}
-                      aria-label={`Remove ${title}`}
-                      className="rounded-full p-0.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                    >
-                      <IconX className="size-3.5" aria-hidden="true" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-      </div>
-
-      {totalTitles > 0 && (
-        <div className="mt-6 flex items-center gap-2 rounded-xl bg-indigo-50 px-4 py-3 text-xs text-indigo-700">
-          <IconTrash className="size-4 shrink-0" aria-hidden="true" />
-          {totalTitles} job title{totalTitles === 1 ? '' : 's'} across your departments.
+      {error && (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 sm:text-sm">
+          {error}
         </div>
       )}
 
-      <StepFooter backTo="/onboarding/departments" continueTo="/onboarding/import" />
+      {/* Accordion List for each user-selected Department */}
+      <div className="mt-8 space-y-3.5">
+        {activeDepartments.map((dept) => {
+          const isOpen = Boolean(openDepts[dept])
+          const currentTitles = deptTitles[dept]?.titles || []
+          const suggestions = (DEPARTMENT_TITLE_SUGGESTIONS[dept] || [
+            'Manager',
+            'Lead',
+            'Specialist',
+            'Coordinator',
+            'Associate',
+          ]).filter((s) => !currentTitles.includes(s))
+
+          return (
+            <JobTitleAccordion
+              key={dept}
+              department={dept}
+              titles={currentTitles}
+              suggestions={suggestions}
+              isOpen={isOpen}
+              draftInput={draftInputs[dept] || ''}
+              onToggle={() => toggleAccordion(dept)}
+              onAddSuggestion={(s) => addSuggestion(dept, s)}
+              onAddCustom={() => addCustomTitle(dept)}
+              onDraftChange={(val) =>
+                setDraftInputs((prev) => ({ ...prev, [dept]: val }))
+              }
+              onRemoveTitle={(t) => removeTitle(dept, t)}
+            />
+          )
+        })}
+      </div>
+
+      {/* Footer Navigation */}
+      <StepFooter
+        backTo="/onboarding/departments"
+        onContinue={handleContinue}
+        continueDisabled={totalTitlesCount === 0}
+        isLoading={isSubmitting}
+      />
     </div>
   )
 }
