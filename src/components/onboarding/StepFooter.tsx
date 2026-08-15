@@ -1,3 +1,4 @@
+import React from 'react'
 import { Link } from 'react-router'
 import { Button } from '../ui'
 import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react'
@@ -11,6 +12,8 @@ export interface StepFooterProps {
   continueDisabled?: boolean
   isLoading?: boolean
   onContinue?: () => void
+  onSkip?: () => void
+  skipLabel?: string
   children?: React.ReactNode
 }
 
@@ -23,6 +26,8 @@ export function StepFooter({
   continueDisabled = false,
   isLoading = false,
   onContinue,
+  onSkip,
+  skipLabel = 'Skip this step',
   children,
 }: StepFooterProps) {
   return (
@@ -38,8 +43,19 @@ export function StepFooter({
         <span />
       )}
 
-      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
+        {onSkip && (
+          <button
+            type="button"
+            onClick={onSkip}
+            className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+          >
+            {skipLabel}
+          </button>
+        )}
+
         {children}
+
         {continueTo ? (
           <Link
             to={continueTo}

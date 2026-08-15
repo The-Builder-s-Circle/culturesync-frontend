@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { Button, TextInput } from '../../components/ui'
-import { StepFooter } from '../../components/onboarding/StepFooter'
+import { StepFooter, StepHeader, DepartmentCard } from '../../components/onboarding'
 import {
   IconSettings,
   IconPalette,
@@ -19,10 +19,7 @@ import {
   IconDeviceDesktop,
   IconMicroscope,
   IconWorld,
-  IconCheck,
   IconPlus,
-  IconTrash,
-  IconBuilding,
 } from '@tabler/icons-react'
 import { useOnboarding, useAuth } from '../../store'
 import { departmentApi, tenantApi } from '../../api'
@@ -220,22 +217,12 @@ export default function DepartmentsPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Departments
-          </h2>
-          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base">
-            Select the departments in your organization. You can add more later.
-          </p>
-        </div>
-        <div className="shrink-0">
-          <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            {totalSelectedCount} selected
-          </span>
-        </div>
-      </div>
+      {/* Step Header component */}
+      <StepHeader
+        title="Departments"
+        description="Select the departments in your organization. You can add more later."
+        badge={`${totalSelectedCount} selected`}
+      />
 
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 sm:text-sm">
@@ -243,74 +230,31 @@ export default function DepartmentsPage() {
         </div>
       )}
 
-      {/* Grid of predefined departments */}
+      {/* Grid of predefined & custom department cards */}
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {PREDEFINED_DEPARTMENTS.map((dept) => {
-          const isSelected = selectedPredefined.includes(dept.id)
-          const Icon = dept.icon
+        {PREDEFINED_DEPARTMENTS.map((dept) => (
+          <DepartmentCard
+            key={dept.id}
+            id={dept.id}
+            name={dept.name}
+            icon={dept.icon}
+            iconBg={dept.iconBg}
+            iconColor={dept.iconColor}
+            isSelected={selectedPredefined.includes(dept.id)}
+            onToggle={() => togglePredefined(dept.id)}
+          />
+        ))}
 
-          return (
-            <button
-              key={dept.id}
-              type="button"
-              onClick={() => togglePredefined(dept.id)}
-              className={`group flex items-center justify-between rounded-2xl p-3.5 text-left transition-all duration-150 ${
-                isSelected
-                  ? 'border-2 border-indigo-600 bg-indigo-50/40 shadow-xs'
-                  : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
-              }`}
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <div
-                  className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${dept.iconBg} ${dept.iconColor}`}
-                >
-                  <Icon className="size-5" aria-hidden="true" />
-                </div>
-                <span
-                  className={`truncate text-sm font-semibold transition-colors ${
-                    isSelected ? 'text-indigo-600' : 'text-slate-800'
-                  }`}
-                >
-                  {dept.name}
-                </span>
-              </div>
-
-              {isSelected && (
-                <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xs">
-                  <IconCheck className="size-3.5 stroke-[3]" aria-hidden="true" />
-                </div>
-              )}
-            </button>
-          )
-        })}
-
-        {/* Custom departments rendered alongside */}
         {customDepartments.map((name) => (
-          <div
+          <DepartmentCard
             key={name}
-            className="group flex items-center justify-between rounded-2xl border-2 border-indigo-600 bg-indigo-50/40 p-3.5 shadow-xs"
-          >
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-                <IconBuilding className="size-5" aria-hidden="true" />
-              </div>
-              <span className="truncate text-sm font-semibold text-indigo-600">{name}</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xs">
-                <IconCheck className="size-3.5 stroke-[3]" aria-hidden="true" />
-              </div>
-              <button
-                type="button"
-                onClick={() => removeCustom(name)}
-                aria-label={`Remove ${name}`}
-                className="rounded-lg p-1 text-slate-400 opacity-70 transition-colors hover:bg-red-100 hover:text-red-600 hover:opacity-100"
-              >
-                <IconTrash className="size-3.5" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
+            id={`custom-${name}`}
+            name={name}
+            isSelected={true}
+            isCustom={true}
+            onToggle={() => {}}
+            onRemove={() => removeCustom(name)}
+          />
         ))}
       </div>
 

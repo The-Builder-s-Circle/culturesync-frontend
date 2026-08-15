@@ -1,12 +1,12 @@
 import { apiClient } from './client'
 
-export interface BaseApiResponse {
+export interface BaseApiResponse<T = unknown> {
   isSuccess?: boolean
   succeeded?: boolean
   message?: string | null
   messages?: string[] | null
   errors?: string[] | null
-  data?: unknown
+  data?: T
 }
 
 export interface SignUpAdminPayload {
