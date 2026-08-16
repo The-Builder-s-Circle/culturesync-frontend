@@ -73,11 +73,9 @@ export default function InviteTeamPage() {
 
     setIsSubmitting(true)
     try {
-      let activeTenantId: string | null = tenantId || user?.tenantId || null
+      let activeTenantId = tenantId || user?.tenantId || null
       if (!activeTenantId) {
-        const lookup = await tenantApi.lookup()
-        const lookupData = lookup.data as { tenantId?: string; id?: string } | undefined
-        activeTenantId = lookupData?.tenantId || lookupData?.id || null
+        activeTenantId = await tenantApi.resolveActiveTenantId()
         if (activeTenantId) {
           setTenantId(activeTenantId)
         }

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import type { ReactNode } from 'react'
 import { AuthContext } from './AuthContextObject'
 import type { User, RegisterPayload, LoginPayload } from './AuthContextObject'
-import { authApi, STORAGE_TOKEN_KEY } from '../api'
+import { authApi, tenantApi, STORAGE_TOKEN_KEY, extractTenantId, getTenantIdFromJwt } from '../api'
 
 const STORAGE_USER_KEY = 'culturesync_auth_user'
 const STORAGE_OTP_EMAIL_KEY = 'culturesync_pending_otp_email'
@@ -127,19 +127,50 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const isSuccessful = Boolean(res.isSuccess || res.succeeded)
       if (isSuccessful) {
-        // Extract token, tenantId & user info from API response data if returned
-        const apiData = res.data as
-          | { token?: string; tenantId?: string; user?: User }
-          | undefined
-        const authToken = apiData?.token || `token_${Date.now()}`
-        const resolvedTenantId = apiData?.tenantId || apiData?.user?.tenantId || null
+        // 1. Extract authentication token
+        const rawData = res.data
+        let authToken = ''
+        if (typeof rawData === 'string') {
+          authToken = rawData
+        } else if (rawData && typeof rawData === 'object') {
+          const dataObj = rawData as Record<string, unknown>
+          authToken = (dataObj.token || dataObj.accessToken || dataObj.jwt || '') as string
+        }
+
+        if (!authToken) {
+          authToken = `token_${Date.now()}`
+        }
+
+        // Store token immediately so subsequent requests are authenticated
+        setToken(authToken)
+        localStorage.setItem(STORAGE_TOKEN_KEY, authToken)
+
+        // 2. Extract tenant ID from response, JWT claims, or live lookup
+        let resolvedTenantId =
+          extractTenantId(res.data) ||
+          extractTenantId(res) ||
+          getTenantIdFromJwt(authToken)
+
+        if (!resolvedTenantId && authToken) {
+          try {
+            const lookupRes = await tenantApi.lookup()
+            resolvedTenantId = extractTenantId(lookupRes)
+          } catch (lookupErr) {
+            console.warn('Post-login tenant lookup deferred:', lookupErr)
+          }
+        }
 
         if (resolvedTenantId) {
           setTenantId(resolvedTenantId)
           localStorage.setItem(STORAGE_TENANT_ID_KEY, resolvedTenantId)
         }
 
-        const loggedInUser: User = apiData?.user || {
+        const apiUser =
+          rawData && typeof rawData === 'object'
+            ? ((rawData as Record<string, unknown>).user as User | undefined)
+            : undefined
+
+        const loggedInUser: User = apiUser || {
           id: user?.id || `user_${Date.now()}`,
           fullName: user?.fullName || 'Admin User',
           email: payload.email,
@@ -150,10 +181,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         setUser(loggedInUser)
-        setToken(authToken)
 
         if (payload.rememberMe !== false) {
-          localStorage.setItem(STORAGE_TOKEN_KEY, authToken)
           localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(loggedInUser))
         }
 
