@@ -21,7 +21,7 @@ import {
   IconWorld,
   IconPlus,
 } from '@tabler/icons-react'
-import { useOnboarding, useAuth } from '../../store'
+import { useOnboarding, useAuth, getTenantSelectedDeptsKey, getTenantCustomDeptsKey } from '../../store'
 import { departmentApi, tenantApi } from '../../api'
 
 interface PredefinedDept {
@@ -31,9 +31,6 @@ interface PredefinedDept {
   iconBg: string
   iconColor: string
 }
-
-const STORAGE_SELECTED_DEPTS_KEY = 'culturesync_selected_departments'
-const STORAGE_CUSTOM_DEPTS_KEY = 'culturesync_custom_departments'
 
 const PREDEFINED_DEPARTMENTS: PredefinedDept[] = [
   { id: 'eng', name: 'Engineering', icon: IconSettings, iconBg: 'bg-purple-100', iconColor: 'text-purple-600' },
@@ -58,20 +55,24 @@ export default function DepartmentsPage() {
   const { user } = useAuth()
   const { tenantId, setTenantId, markStepComplete } = useOnboarding()
 
-  // Selected predefined departments (defaults to 0 selected or restores from localStorage)
+  const activeTenantId = tenantId || user?.tenantId || null
+  const selectedDeptsKey = getTenantSelectedDeptsKey(activeTenantId)
+  const customDeptsKey = getTenantCustomDeptsKey(activeTenantId)
+
+  // Selected predefined departments (strictly tenant-scoped, defaults to empty)
   const [selectedPredefined, setSelectedPredefined] = useState<string[]>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_SELECTED_DEPTS_KEY)
+      const stored = localStorage.getItem(selectedDeptsKey)
       return stored ? (JSON.parse(stored) as string[]) : []
     } catch {
       return []
     }
   })
 
-  // Custom user-created departments (restores from localStorage)
+  // Custom user-created departments (strictly tenant-scoped, defaults to empty)
   const [customDepartments, setCustomDepartments] = useState<string[]>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_CUSTOM_DEPTS_KEY)
+      const stored = localStorage.getItem(customDeptsKey)
       return stored ? (JSON.parse(stored) as string[]) : []
     } catch {
       return []
@@ -86,7 +87,7 @@ export default function DepartmentsPage() {
     setSelectedPredefined((prev) => {
       const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
       try {
-        localStorage.setItem(STORAGE_SELECTED_DEPTS_KEY, JSON.stringify(next))
+        localStorage.setItem(selectedDeptsKey, JSON.stringify(next))
       } catch (e) {
         console.warn('Failed to save selected departments', e)
       }
@@ -107,7 +108,7 @@ export default function DepartmentsPage() {
       if (!selectedPredefined.includes(match.id)) {
         setSelectedPredefined((prev) => {
           const next = [...prev, match.id]
-          localStorage.setItem(STORAGE_SELECTED_DEPTS_KEY, JSON.stringify(next))
+          localStorage.setItem(selectedDeptsKey, JSON.stringify(next))
           return next
         })
       }
@@ -123,7 +124,7 @@ export default function DepartmentsPage() {
     setCustomDepartments((prev) => {
       const next = [...prev, trimmed]
       try {
-        localStorage.setItem(STORAGE_CUSTOM_DEPTS_KEY, JSON.stringify(next))
+        localStorage.setItem(customDeptsKey, JSON.stringify(next))
       } catch (e) {
         console.warn('Failed to save custom departments', e)
       }
@@ -136,7 +137,7 @@ export default function DepartmentsPage() {
     setCustomDepartments((prev) => {
       const next = prev.filter((d) => d !== name)
       try {
-        localStorage.setItem(STORAGE_CUSTOM_DEPTS_KEY, JSON.stringify(next))
+        localStorage.setItem(customDeptsKey, JSON.stringify(next))
       } catch (e) {
         console.warn('Failed to update custom departments', e)
       }

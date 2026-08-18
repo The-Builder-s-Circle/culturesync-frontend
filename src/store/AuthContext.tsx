@@ -205,6 +205,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem(STORAGE_TOKEN_KEY)
     localStorage.removeItem(STORAGE_USER_KEY)
     localStorage.removeItem(STORAGE_TENANT_ID_KEY)
+    localStorage.removeItem('culturesync_onboarding_progress')
+    localStorage.removeItem('culturesync_selected_departments')
+    localStorage.removeItem('culturesync_custom_departments')
+    localStorage.removeItem('culturesync_job_titles')
     sessionStorage.removeItem(STORAGE_OTP_EMAIL_KEY)
   }
 

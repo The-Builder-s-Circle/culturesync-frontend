@@ -1,12 +1,14 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import { StepFooter, StepHeader, JobTitleAccordion } from '../../components/onboarding'
-import { useOnboarding, useAuth } from '../../store'
+import {
+  useOnboarding,
+  useAuth,
+  getTenantSelectedDeptsKey,
+  getTenantCustomDeptsKey,
+  getTenantJobTitlesKey,
+} from '../../store'
 import { jobTitleApi, tenantApi } from '../../api'
-
-const STORAGE_SELECTED_DEPTS_KEY = 'culturesync_selected_departments'
-const STORAGE_CUSTOM_DEPTS_KEY = 'culturesync_custom_departments'
-const STORAGE_JOB_TITLES_KEY = 'culturesync_job_titles'
 
 const PREDEFINED_ID_TO_NAME: Record<string, string> = {
   eng: 'Engineering',
@@ -155,11 +157,16 @@ export default function JobTitles() {
   const { user } = useAuth()
   const { tenantId, setTenantId, markStepComplete } = useOnboarding()
 
+  const activeTenantId = tenantId || user?.tenantId || null
+  const selectedDeptsKey = getTenantSelectedDeptsKey(activeTenantId)
+  const customDeptsKey = getTenantCustomDeptsKey(activeTenantId)
+  const jobTitlesKey = getTenantJobTitlesKey(activeTenantId)
+
   // 1. Resolve departments chosen by user in previous onboarding step
   const activeDepartments = useMemo<string[]>(() => {
     try {
-      const storedPredefined = localStorage.getItem(STORAGE_SELECTED_DEPTS_KEY)
-      const storedCustom = localStorage.getItem(STORAGE_CUSTOM_DEPTS_KEY)
+      const storedPredefined = localStorage.getItem(selectedDeptsKey)
+      const storedCustom = localStorage.getItem(customDeptsKey)
 
       const predefinedIds = storedPredefined ? (JSON.parse(storedPredefined) as string[]) : []
       const customDepts = storedCustom ? (JSON.parse(storedCustom) as string[]) : []
@@ -175,12 +182,12 @@ export default function JobTitles() {
     }
     // Fallback if user arrived directly
     return ['Business Development', 'Operations', 'Sales & Revenue']
-  }, [])
+  }, [selectedDeptsKey, customDeptsKey])
 
-  // 2. Department titles state (restored from localStorage)
+  // 2. Department titles state (strictly tenant-scoped)
   const [deptTitles, setDeptTitles] = useState<Record<string, StoredDeptTitles>>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_JOB_TITLES_KEY)
+      const stored = localStorage.getItem(jobTitlesKey)
       if (stored) return JSON.parse(stored)
     } catch {
       // fallback
@@ -206,13 +213,16 @@ export default function JobTitles() {
     setOpenDepts((prev) => ({ ...prev, [dept]: !prev[dept] }))
   }
 
-  const persistTitles = useCallback((next: Record<string, StoredDeptTitles>) => {
-    try {
-      localStorage.setItem(STORAGE_JOB_TITLES_KEY, JSON.stringify(next))
-    } catch (e) {
-      console.warn('Failed to persist job titles', e)
-    }
-  }, [])
+  const persistTitles = useCallback(
+    (next: Record<string, StoredDeptTitles>) => {
+      try {
+        localStorage.setItem(jobTitlesKey, JSON.stringify(next))
+      } catch (e) {
+        console.warn('Failed to persist job titles', e)
+      }
+    },
+    [jobTitlesKey]
+  )
 
   const addSuggestion = (dept: string, title: string) => {
     setDeptTitles((prev) => {

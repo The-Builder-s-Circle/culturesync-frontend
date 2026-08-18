@@ -11,6 +11,11 @@ export interface SetupProfilePayload {
   Slug: string
 }
 
+export interface LookupOption {
+  value: string
+  label: string
+}
+
 export interface TenantLookupData {
   id?: string
   tenantId?: string
@@ -24,12 +29,21 @@ export interface TenantLookupData {
   defaultCurrency?: string
   logoUrl?: string
   isOnboarded?: boolean
+  industries?: LookupOption[]
+  companySizes?: LookupOption[]
+  timeZones?: LookupOption[]
+  currencies?: LookupOption[]
+  jobTitles?: LookupOption[]
+  gradeLevels?: LookupOption[]
+  departments?: LookupOption[]
 }
 
 export interface OnboardingProgressData {
   currentStep?: number | string
   completedSteps?: string[]
+  completionPercentage?: number
   percentageComplete?: number
+  percentage?: number
   isCompleted?: boolean
 }
 
@@ -74,11 +88,9 @@ export function extractTenantId(source: unknown): string | null {
   if (!source) return null
 
   if (typeof source === 'string') {
-    // If it's a GUID/ID directly
     if (source.length >= 10 && !source.includes('{') && !source.includes('.')) {
       return source
     }
-    // If it's a JWT token
     if (source.includes('.')) {
       return getTenantIdFromJwt(source)
     }
@@ -97,7 +109,6 @@ export function extractTenantId(source: unknown): string | null {
 
     if (typeof id === 'string' && id.length > 0) return id
 
-    // Check nested data property
     if (obj.data) {
       const nested = extractTenantId(obj.data)
       if (nested) return nested

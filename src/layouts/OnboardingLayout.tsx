@@ -1,18 +1,25 @@
-import { Outlet, NavLink, useLocation } from 'react-router'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router'
 import { Logo } from '../components/ui'
 import { StepDot } from '../components/ui'
 import { ONBOARDING_STEPS, findStepIndex } from '../pages/onboarding/steps'
 import { useOnboarding, useAuth } from '../store'
+import { IconLogout } from '@tabler/icons-react'
 
 export default function OnboardingLayout() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const activeIndex = findStepIndex(pathname)
   const activeStep = ONBOARDING_STEPS[activeIndex]
   const { completedSteps, percentComplete } = useOnboarding()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
 
   const companyDisplayName = user?.companyName || 'Your Organization'
   const companyInitial = companyDisplayName.charAt(0).toUpperCase() || 'C'
+
+  const handleLogout = () => {
+    logout()
+    navigate('/auth/login')
+  }
 
   return (
     <div className="min-h-screen bg-canvas font-sans md:flex">
@@ -55,16 +62,27 @@ export default function OnboardingLayout() {
         </div>
 
         <div className="border-t border-slate-200 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100 font-display text-sm font-bold text-indigo-600">
-              {companyInitial}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100 font-display text-sm font-bold text-indigo-600">
+                {companyInitial}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-800">
+                  {companyDisplayName}
+                </p>
+                <p className="text-xs text-slate-400">Configuring…</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-slate-800">
-                {companyDisplayName}
-              </p>
-              <p className="text-xs text-slate-400">Configuring…</p>
-            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+              title="Log out"
+              aria-label="Log out"
+            >
+              <IconLogout className="size-4" />
+            </button>
           </div>
         </div>
       </aside>
@@ -74,9 +92,20 @@ export default function OnboardingLayout() {
         {/* Mobile top bar */}
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 md:hidden">
           <Logo className="[&>div]:!size-8" />
-          <span className="font-mono text-xs font-semibold uppercase tracking-widest text-indigo-600">
-            Step {activeStep.number} of {ONBOARDING_STEPS.length}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-xs font-semibold uppercase tracking-widest text-indigo-600">
+              Step {activeStep.number} of {ONBOARDING_STEPS.length}
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+              title="Log out"
+              aria-label="Log out"
+            >
+              <IconLogout className="size-4" />
+            </button>
+          </div>
         </header>
 
         {/* Step header */}

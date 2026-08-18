@@ -2,66 +2,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { OnboardingContext } from './OnboardingContextObject'
 import { ONBOARDING_STEPS } from '../pages/onboarding/steps'
-import { tenantApi } from '../api'
-
-const STORAGE_TENANT_ID_KEY = 'culturesync_tenant_id'
-const STORAGE_PROGRESS_KEY = 'culturesync_onboarding_progress'
-
-const STEP_ORDER = [
-  'organization',
-  'departments',
-  'job-titles',
-  'import',
-  'invite',
-  'hr-config',
-  'complete',
-]
-
-/**
- * Normalizes various backend response formats into standardized step IDs.
- * Supports:
- * - Number indices (1-7)
- * - Raw string names (any casing/spaces, e.g. "Organization Profile", "Departments")
- * - Percentage thresholds (14%, 29%, 43%, etc.)
- */
-function normalizeStepIds(raw: unknown, percentage?: number): string[] {
-  const normalized = new Set<string>()
-
-  if (Array.isArray(raw)) {
-    for (const item of raw) {
-      if (typeof item === 'number' && item >= 1 && item <= STEP_ORDER.length) {
-        normalized.add(STEP_ORDER[item - 1])
-      } else if (typeof item === 'string') {
-        const lower = item.toLowerCase().trim()
-        if (lower.includes('org') || lower.includes('company') || lower.includes('profile')) {
-          normalized.add('organization')
-        } else if (lower.includes('dept') || lower.includes('department')) {
-          normalized.add('departments')
-        } else if (lower.includes('job') || lower.includes('title')) {
-          normalized.add('job-titles')
-        } else if (lower.includes('import') || lower.includes('employee') || lower.includes('roster')) {
-          normalized.add('import')
-        } else if (lower.includes('invite') || lower.includes('team')) {
-          normalized.add('invite')
-        } else if (lower.includes('hr') || lower.includes('config') || lower.includes('polic')) {
-          normalized.add('hr-config')
-        } else if (lower.includes('complete') || lower.includes('finish') || lower.includes('done')) {
-          normalized.add('complete')
-        }
-      }
-    }
-  }
-
-  // Infer steps from percentage if provided (each step represents ~14.28%)
-  if (typeof percentage === 'number' && percentage > 0) {
-    const stepCount = Math.min(Math.round((percentage / 100) * STEP_ORDER.length), STEP_ORDER.length)
-    for (let i = 0; i < stepCount; i++) {
-      normalized.add(STEP_ORDER[i])
-    }
-  }
-
-  return Array.from(normalized)
-}
+import { tenantApi, extractTenantId } from '../api'
+import {
+  STORAGE_TENANT_ID_KEY,
+  getTenantProgressStorageKey,
+  normalizeStepIds,
+} from './onboardingUtils'
 
 export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [tenantId, setTenantIdState] = useState<string | null>(() => {
@@ -74,7 +20,10 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const [completedSteps, setCompletedSteps] = useState<string[]>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_PROGRESS_KEY)
+      const activeTenant = localStorage.getItem(STORAGE_TENANT_ID_KEY)
+      if (!activeTenant) return []
+      const key = getTenantProgressStorageKey(activeTenant)
+      const stored = localStorage.getItem(key)
       return stored ? (JSON.parse(stored) as string[]) : []
     } catch {
       return []
@@ -88,168 +37,203 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
     setTenantIdState(id)
     if (id) {
       localStorage.setItem(STORAGE_TENANT_ID_KEY, id)
+      // Hydrate tenant-scoped progress strictly for this tenant
+      try {
+        const key = getTenantProgressStorageKey(id)
+        const stored = localStorage.getItem(key)
+        if (stored) {
+          setCompletedSteps(JSON.parse(stored) as string[])
+        } else {
+          setCompletedSteps([])
+        }
+      } catch {
+        setCompletedSteps([])
+      }
     } else {
       localStorage.removeItem(STORAGE_TENANT_ID_KEY)
+      setCompletedSteps([])
     }
   }, [])
 
-  const markStepComplete = useCallback((stepId: string) => {
-    setCompletedSteps((prev) => {
-      if (prev.includes(stepId)) return prev
-      const next = [...prev, stepId]
-      try {
-        localStorage.setItem(STORAGE_PROGRESS_KEY, JSON.stringify(next))
-      } catch (e) {
-        console.warn('Failed to save onboarding progress to localStorage', e)
-      }
-      return next
-    })
-  }, [])
+  const markStepComplete = useCallback(
+    (stepId: string) => {
+      setCompletedSteps((prev) => {
+        if (prev.includes(stepId)) return prev
+        const next = [...prev, stepId]
+        try {
+          const key = getTenantProgressStorageKey(tenantId)
+          localStorage.setItem(key, JSON.stringify(next))
+        } catch (e) {
+          console.warn('Failed to save onboarding progress to localStorage', e)
+        }
+        return next
+      })
+    },
+    [tenantId]
+  )
 
   const fetchProgress = useCallback(async () => {
     setIsLoadingProgress(true)
     try {
-      // 1. Fetch lookup metadata to retrieve tenantId if not already in state
-      const lookupRes = await tenantApi.lookup()
-      if (lookupRes.isSuccess || lookupRes.succeeded) {
-        const lookupData = lookupRes.data as {
-          tenantId?: string
-          id?: string
-          isOnboarded?: boolean
-          completedSteps?: unknown
-        } | undefined
-        const resolvedTenantId = lookupData?.tenantId || lookupData?.id
-        if (resolvedTenantId) {
-          setTenantId(resolvedTenantId)
-        }
+      // 1. Resolve active tenant ID
+      const resolvedTenantId = await tenantApi.resolveActiveTenantId()
+      if (resolvedTenantId && resolvedTenantId !== tenantId) {
+        setTenantId(resolvedTenantId)
       }
 
-      // 2. Fetch onboarding progress from backend
+      // 2. Fetch authoritative onboarding progress from backend
       const progressRes = await tenantApi.getOnboardingProgress()
       if (progressRes.isSuccess || progressRes.succeeded) {
-        const data = progressRes.data as
+        const raw = progressRes.data as
           | {
               completedSteps?: unknown[]
               currentStep?: string | number
+              completionPercentage?: number
               percentageComplete?: number
               percentage?: number
             }
           | undefined
 
+        const pct =
+          raw?.completionPercentage ?? raw?.percentageComplete ?? raw?.percentage ?? 0
+
         const normalizedFromApi = normalizeStepIds(
-          data?.completedSteps,
-          data?.percentageComplete ?? data?.percentage
+          raw?.completedSteps,
+          pct,
+          raw?.currentStep
         )
 
-        if (normalizedFromApi.length > 0) {
-          setCompletedSteps((prev) => {
-            const merged = Array.from(new Set([...prev, ...normalizedFromApi]))
-            try {
-              localStorage.setItem(STORAGE_PROGRESS_KEY, JSON.stringify(merged))
-            } catch (e) {
-              console.warn('Storage write failed', e)
-            }
-            return merged
-          })
+        // Directly apply authoritative server response
+        setCompletedSteps(normalizedFromApi)
+
+        const activeId = resolvedTenantId || tenantId
+        if (activeId) {
+          try {
+            const key = getTenantProgressStorageKey(activeId)
+            localStorage.setItem(key, JSON.stringify(normalizedFromApi))
+          } catch (e) {
+            console.warn('Storage write failed', e)
+          }
         }
       }
     } catch (err: unknown) {
-      console.warn('Progress sync from backend deferred (using cached progress):', err)
+      console.warn('Progress sync from backend deferred:', err)
     } finally {
       setIsLoadingProgress(false)
     }
-  }, [setTenantId])
+  }, [setTenantId, tenantId])
 
+  // Sync progress on initial mount and whenever tenantId changes
   useEffect(() => {
     let ignore = false
     const syncInitialProgress = async () => {
       try {
         const lookupRes = await tenantApi.lookup()
         if (!ignore && (lookupRes.isSuccess || lookupRes.succeeded)) {
-          const lookupData = lookupRes.data as { tenantId?: string; id?: string } | undefined
-          const resolvedTenantId = lookupData?.tenantId || lookupData?.id
-          if (resolvedTenantId) {
-            setTenantId(resolvedTenantId)
+          const resolvedId = extractTenantId(lookupRes)
+          if (resolvedId && resolvedId !== tenantId) {
+            setTenantId(resolvedId)
           }
         }
 
         const progressRes = await tenantApi.getOnboardingProgress()
         if (!ignore && (progressRes.isSuccess || progressRes.succeeded)) {
-          const data = progressRes.data as
+          const raw = progressRes.data as
             | {
                 completedSteps?: unknown[]
                 currentStep?: string | number
+                completionPercentage?: number
                 percentageComplete?: number
                 percentage?: number
               }
             | undefined
 
+          const pct =
+            raw?.completionPercentage ?? raw?.percentageComplete ?? raw?.percentage ?? 0
+
           const normalizedFromApi = normalizeStepIds(
-            data?.completedSteps,
-            data?.percentageComplete ?? data?.percentage
+            raw?.completedSteps,
+            pct,
+            raw?.currentStep
           )
 
-          if (normalizedFromApi.length > 0) {
-            setCompletedSteps((prev) => {
-              const merged = Array.from(new Set([...prev, ...normalizedFromApi]))
-              try {
-                localStorage.setItem(STORAGE_PROGRESS_KEY, JSON.stringify(merged))
-              } catch (e) {
-                console.warn('Storage write failed', e)
-              }
-              return merged
-            })
+          setCompletedSteps(normalizedFromApi)
+
+          const activeId = localStorage.getItem(STORAGE_TENANT_ID_KEY)
+          if (activeId) {
+            try {
+              const key = getTenantProgressStorageKey(activeId)
+              localStorage.setItem(key, JSON.stringify(normalizedFromApi))
+            } catch (e) {
+              console.warn('Storage write failed', e)
+            }
           }
         }
       } catch (err: unknown) {
         console.warn('Initial progress sync deferred:', err)
       }
     }
+
     syncInitialProgress()
     return () => {
       ignore = true
     }
-  }, [setTenantId])
+  }, [setTenantId, tenantId])
 
-  const percentComplete = useMemo(() => {
-    if (ONBOARDING_STEPS.length === 0) return 0
-    return Math.round((completedSteps.length / ONBOARDING_STEPS.length) * 100)
-  }, [completedSteps])
+  const totalSteps = ONBOARDING_STEPS.length
+
+  const percentageComplete = useMemo(() => {
+    if (completedSteps.length === 0) return 0
+    return Math.min(Math.round((completedSteps.length / totalSteps) * 100), 100)
+  }, [completedSteps, totalSteps])
+
+  const isStepComplete = useCallback(
+    (stepId: string): boolean => {
+      return completedSteps.includes(stepId)
+    },
+    [completedSteps]
+  )
 
   const getResumeRoute = useCallback((): string => {
-    for (const step of ONBOARDING_STEPS) {
-      if (!completedSteps.includes(step.id)) {
-        return step.path
-      }
-    }
-    return '/onboarding/complete'
+    const firstIncomplete = ONBOARDING_STEPS.find((step) => !completedSteps.includes(step.id))
+    return firstIncomplete ? firstIncomplete.path : '/dashboard'
   }, [completedSteps])
 
-  const currentStepId = useMemo(() => {
-    for (const step of ONBOARDING_STEPS) {
-      if (!completedSteps.includes(step.id)) {
-        return step.id
-      }
-    }
-    return 'complete'
-  }, [completedSteps])
+  const currentStepId =
+    ONBOARDING_STEPS.find((step) => !completedSteps.includes(step.id))?.id || 'complete'
+  const isComplete = completedSteps.length >= totalSteps
 
-  return (
-    <OnboardingContext.Provider
-      value={{
-        tenantId,
-        setTenantId,
-        currentStepId,
-        completedSteps,
-        isLoadingProgress,
-        error,
-        percentComplete,
-        fetchProgress,
-        markStepComplete,
-        getResumeRoute,
-      }}
-    >
-      {children}
-    </OnboardingContext.Provider>
+  const value = useMemo(
+    () => ({
+      tenantId,
+      completedSteps,
+      currentStepId,
+      percentageComplete,
+      percentComplete: percentageComplete,
+      isLoadingProgress,
+      error,
+      setTenantId,
+      markStepComplete,
+      fetchProgress,
+      isStepComplete,
+      getResumeRoute,
+      isComplete,
+    }),
+    [
+      tenantId,
+      completedSteps,
+      currentStepId,
+      percentageComplete,
+      isLoadingProgress,
+      error,
+      setTenantId,
+      markStepComplete,
+      fetchProgress,
+      isStepComplete,
+      getResumeRoute,
+      isComplete,
+    ]
   )
+
+  return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>
 }
