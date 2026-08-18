@@ -3,79 +3,89 @@ import { useNavigate } from 'react-router'
 import { SelectDropdown, TextInput } from '../../components/ui'
 import { StepFooter, StepHeader, LogoUpload } from '../../components/onboarding'
 import { useAuth, useOnboarding } from '../../store'
-import { tenantApi } from '../../api'
+import { tenantApi, extractTenantId } from '../../api'
+import type { LookupOption, TenantLookupData } from '../../api'
 
-const INDUSTRIES = [
-  'Healthcare & Life Sciences',
-  'Financial Services',
-  'Technology & Software',
-  'Professional Services',
-  'Retail & E-commerce',
-  'Manufacturing',
-  'Education',
-  'Government & Public Sector',
-  'Media & Entertainment',
-  'Real Estate',
-  'Hospitality & Travel',
-  'Non-profit',
+const FALLBACK_INDUSTRIES: LookupOption[] = [
+  { value: 'Technology & Software', label: 'Technology & Software' },
+  { value: 'Healthcare & Life Sciences', label: 'Healthcare & Life Sciences' },
+  { value: 'Financial Services', label: 'Financial Services' },
+  { value: 'Professional Services', label: 'Professional Services' },
+  { value: 'Education', label: 'Education' },
+  { value: 'Retail & E-Commerce', label: 'Retail & E-Commerce' },
+  { value: 'Manufacturing', label: 'Manufacturing' },
+  { value: 'Government & Public Sector', label: 'Government & Public Sector' },
+  { value: 'Media & Entertainment', label: 'Media & Entertainment' },
+  { value: 'Real Estate', label: 'Real Estate' },
+  { value: 'Hospitality & Travel', label: 'Hospitality & Travel' },
+  { value: 'Non-Profit', label: 'Non-Profit' },
 ]
 
-const COMPANY_SIZES = [
-  '1–10 employees',
-  '11–50 employees',
-  '51–200 employees',
-  '201–500 employees',
-  '501–1000 employees',
-  '1001–5000 employees',
-  '5001+ employees',
+const FALLBACK_COMPANY_SIZES: LookupOption[] = [
+  { value: '1', label: '1 - 10 employees' },
+  { value: '2', label: '11 - 50 employees' },
+  { value: '3', label: '51 - 200 employees' },
+  { value: '4', label: '201 - 500 employees' },
+  { value: '5', label: '501+ employees' },
 ]
 
-const TIMEZONES = [
-  'America/New_York (UTC-5)',
-  'America/Chicago (UTC-6)',
-  'America/Denver (UTC-7)',
-  'America/Los_Angeles (UTC-8)',
-  'Europe/London (UTC+0)',
-  'Europe/Paris (UTC+1)',
-  'Asia/Tokyo (UTC+9)',
-  'Asia/Singapore (UTC+8)',
-  'Australia/Sydney (UTC+11)',
+const FALLBACK_TIMEZONES: LookupOption[] = [
+  { value: 'America/New_York', label: '(UTC-05:00) Eastern Time (New York)' },
+  { value: 'America/Chicago', label: '(UTC-06:00) Central Time (Chicago)' },
+  { value: 'America/Denver', label: '(UTC-07:00) Mountain Time (Denver)' },
+  { value: 'America/Los_Angeles', label: '(UTC-08:00) Pacific Time (Los Angeles)' },
+  { value: 'Europe/London', label: '(UTC+00:00) United Kingdom Time' },
+  { value: 'Europe/Paris', label: '(UTC+01:00) Central European Time (Paris)' },
+  { value: 'Africa/Lagos', label: '(UTC+01:00) West Africa Standard Time (Lagos)' },
+  { value: 'Asia/Dubai', label: '(UTC+04:00) Gulf Standard Time (Dubai)' },
+  { value: 'Asia/Singapore', label: '(UTC+08:00) Singapore Standard Time' },
+  { value: 'Asia/Tokyo', label: '(UTC+09:00) Japan Standard Time (Tokyo)' },
+  { value: 'Australia/Sydney', label: '(UTC+10:00) Eastern Australia Time (Sydney)' },
 ]
 
-const CURRENCIES = [
-  'USD — US Dollar',
-  'EUR — Euro',
-  'GBP — British Pound',
-  'CAD — Canadian Dollar',
-  'AUD — Australian Dollar',
+const FALLBACK_CURRENCIES: LookupOption[] = [
+  { value: 'USD', label: 'USD ($)' },
+  { value: 'EUR', label: 'System Euro (€)' },
+  { value: 'GBP', label: 'Pound (£)' },
+  { value: 'NGN', label: 'Naira (₦)' },
+  { value: 'CAD', label: 'Canadian Dollar (C$)' },
+  { value: 'AUD', label: 'Australian Dollar (A$)' },
 ]
-
-const STORAGE_ORG_DRAFT_KEY = 'culturesync_org_draft'
 
 export default function OrganizationPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { markStepComplete, setTenantId } = useOnboarding()
+  const { tenantId, markStepComplete, setTenantId } = useOnboarding()
+
+  const [industries, setIndustries] = useState<LookupOption[]>(FALLBACK_INDUSTRIES)
+  const [companySizes, setCompanySizes] = useState<LookupOption[]>(FALLBACK_COMPANY_SIZES)
+  const [timeZones, setTimeZones] = useState<LookupOption[]>(FALLBACK_TIMEZONES)
+  const [currencies, setCurrencies] = useState<LookupOption[]>(FALLBACK_CURRENCIES)
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const activeTenantId = tenantId || user?.tenantId || null
+  const draftStorageKey = activeTenantId
+    ? `culturesync_org_draft_${activeTenantId}`
+    : 'culturesync_org_draft'
+
   const [form, setForm] = useState(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_ORG_DRAFT_KEY)
+      const stored = localStorage.getItem(draftStorageKey)
       if (stored) return JSON.parse(stored)
     } catch {
       // fallback
     }
     return {
       companyName: user?.companyName || '',
-      industry: '',
-      companySize: '',
+      industry: 'Technology & Software',
+      companySize: '1',
       hqLocation: '',
-      timezone: 'America/New_York (UTC-5)',
-      currency: 'USD — US Dollar',
+      timezone: 'America/New_York',
+      currency: 'USD',
       website: '',
     }
   })
@@ -87,31 +97,36 @@ export default function OrganizationPage() {
       try {
         const res = await tenantApi.lookup()
         if ((res.isSuccess || res.succeeded) && res.data) {
-          const data = res.data as {
-            tenantId?: string
-            id?: string
-            name?: string
-            companyName?: string
-            industry?: string
-            companySize?: string
-            hqLocation?: string
-            timeZoneId?: string
-            defaultCurrency?: string
-            logoUrl?: string
+          const data = res.data as TenantLookupData
+          const resolvedTenantId = extractTenantId(data) || data.tenantId || data.id
+          if (resolvedTenantId) {
+            setTenantId(resolvedTenantId)
           }
-          if (data.tenantId || data.id) {
-            setTenantId(data.tenantId || data.id || null)
-          }
+
           if (isMounted) {
+            if (Array.isArray(data.industries) && data.industries.length > 0) {
+              setIndustries(data.industries)
+            }
+            if (Array.isArray(data.companySizes) && data.companySizes.length > 0) {
+              setCompanySizes(data.companySizes)
+            }
+            if (Array.isArray(data.timeZones) && data.timeZones.length > 0) {
+              setTimeZones(data.timeZones)
+            }
+            if (Array.isArray(data.currencies) && data.currencies.length > 0) {
+              setCurrencies(data.currencies)
+            }
+
             setForm((prev: typeof form) => ({
               ...prev,
               companyName: data.name || data.companyName || prev.companyName,
-              industry: data.industry || prev.industry,
-              companySize: data.companySize || prev.companySize,
+              industry: data.industry || prev.industry || data.industries?.[0]?.value || 'Technology & Software',
+              companySize: data.companySize || prev.companySize || data.companySizes?.[0]?.value || '1',
               hqLocation: data.hqLocation || prev.hqLocation,
-              timezone: data.timeZoneId || prev.timezone,
-              currency: data.defaultCurrency || prev.currency,
+              timezone: data.timeZoneId || prev.timezone || data.timeZones?.[0]?.value || 'America/New_York',
+              currency: data.defaultCurrency || prev.currency || data.currencies?.[0]?.value || 'USD',
             }))
+
             if (data.logoUrl) {
               setLogoPreview(data.logoUrl)
             }
@@ -137,7 +152,7 @@ export default function OrganizationPage() {
     setForm((prev: typeof form) => {
       const next = { ...prev, [field]: value }
       try {
-        localStorage.setItem(STORAGE_ORG_DRAFT_KEY, JSON.stringify(next))
+        localStorage.setItem(draftStorageKey, JSON.stringify(next))
       } catch (e) {
         console.warn('Failed to save draft organization profile', e)
       }
@@ -172,7 +187,7 @@ export default function OrganizationPage() {
       formData.append('CompanySize', form.companySize)
       formData.append('HQLocation', form.hqLocation.trim() || 'Headquarters')
       formData.append('TimeZoneId', form.timezone)
-      formData.append('DefaultCurrency', form.currency || 'USD — US Dollar')
+      formData.append('DefaultCurrency', form.currency || 'USD')
       formData.append('Slug', slug)
 
       const res = await tenantApi.setupProfile(formData)
@@ -229,7 +244,7 @@ export default function OrganizationPage() {
           label="Industry"
           required
           placeholder="Select industry"
-          options={INDUSTRIES.map((i) => ({ label: i, value: i }))}
+          options={industries}
           value={form.industry}
           onChange={(e) => update('industry', e.target.value)}
         />
@@ -237,7 +252,7 @@ export default function OrganizationPage() {
           label="Company size"
           required
           placeholder="Select size"
-          options={COMPANY_SIZES.map((s) => ({ label: s, value: s }))}
+          options={companySizes}
           value={form.companySize}
           onChange={(e) => update('companySize', e.target.value)}
         />
@@ -251,14 +266,14 @@ export default function OrganizationPage() {
           label="Timezone"
           required
           placeholder="Select timezone"
-          options={TIMEZONES.map((t) => ({ label: t, value: t }))}
+          options={timeZones}
           value={form.timezone}
           onChange={(e) => update('timezone', e.target.value)}
         />
         <SelectDropdown
           label="Default currency"
           placeholder="Select currency"
-          options={CURRENCIES.map((c) => ({ label: c, value: c }))}
+          options={currencies}
           value={form.currency}
           onChange={(e) => update('currency', e.target.value)}
         />

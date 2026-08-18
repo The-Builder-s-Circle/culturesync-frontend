@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router'
 import { Button, TextInput, CustomCheckbox } from '../ui'
 import { PasswordInput } from './PasswordInput'
-import { useAuth } from '../../store'
+import { useAuth, getResumeRouteFromProgress } from '../../store'
 import { PasswordResetModal } from './PasswordResetModal'
 import { tenantApi } from '../../api'
 
@@ -30,27 +30,14 @@ export const SignInForm: React.FC = () => {
     try {
       const success = await login({ email, password, rememberMe })
       if (success) {
-        // Check onboarding completion before deciding redirect
         setIsRedirecting(true)
         try {
           const progressRes = await tenantApi.getOnboardingProgress()
-          const progressData = progressRes.data as
-            | { isCompleted?: boolean; percentageComplete?: number; percentage?: number }
-            | undefined
-
-          const pct = progressData?.percentageComplete ?? progressData?.percentage ?? 0
-          if (progressData?.isCompleted === true || pct >= 100) {
-            navigate('/dashboard')
-          } else {
-            navigate('/onboarding')
-          }
+          const targetRoute = getResumeRouteFromProgress(progressRes.data || progressRes)
+          navigate(targetRoute)
         } catch {
-          // If progress check fails (e.g. cold start), default to onboarding
-          // The onboarding resume flow will handle routing to the correct step
           navigate('/onboarding')
         }
-      } else {
-        setError('Invalid email or password.')
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Invalid email or password.'

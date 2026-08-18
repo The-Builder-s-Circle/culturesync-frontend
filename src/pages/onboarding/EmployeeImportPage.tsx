@@ -82,14 +82,11 @@ export default function EmployeeImportPage() {
     setIsValidating(true)
 
     try {
-      let activeTenantId: string | null = tenantId || user?.tenantId || null
+      let activeTenantId = tenantId || user?.tenantId || null
       if (!activeTenantId) {
-        const lookup = await tenantApi.lookup()
-        const lookupData = lookup.data as { tenantId?: string; id?: string } | undefined
-        const resolvedId = lookupData?.tenantId || lookupData?.id || null
-        if (resolvedId) {
-          activeTenantId = resolvedId
-          setTenantId(resolvedId)
+        activeTenantId = await tenantApi.resolveActiveTenantId()
+        if (activeTenantId) {
+          setTenantId(activeTenantId)
         }
       }
 
@@ -130,11 +127,12 @@ export default function EmployeeImportPage() {
 
       setIsSubmitting(true)
       try {
-        let activeTenantId: string | null = tenantId || user?.tenantId || null
+        let activeTenantId = tenantId || user?.tenantId || null
         if (!activeTenantId) {
-          const lookup = await tenantApi.lookup()
-          const lookupData = lookup.data as { tenantId?: string; id?: string } | undefined
-          activeTenantId = lookupData?.tenantId || lookupData?.id || null
+          activeTenantId = await tenantApi.resolveActiveTenantId()
+          if (activeTenantId) {
+            setTenantId(activeTenantId)
+          }
         }
 
         if (!activeTenantId) {
@@ -167,11 +165,12 @@ export default function EmployeeImportPage() {
 
     setIsSubmitting(true)
     try {
-      let activeTenantId: string | null = tenantId || user?.tenantId || null
+      let activeTenantId = tenantId || user?.tenantId || null
       if (!activeTenantId) {
-        const lookup = await tenantApi.lookup()
-        const lookupData = lookup.data as { tenantId?: string; id?: string } | undefined
-        activeTenantId = lookupData?.tenantId || lookupData?.id || null
+        activeTenantId = await tenantApi.resolveActiveTenantId()
+        if (activeTenantId) {
+          setTenantId(activeTenantId)
+        }
       }
 
       if (!activeTenantId) {

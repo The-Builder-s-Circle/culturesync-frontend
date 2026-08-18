@@ -23,9 +23,10 @@ export interface LoginPayload {
   password: string
 }
 
-export interface ChangePasswordPayload {
-  token: string
-  newPassword: string
+export interface ChangePasswordRequest {
+  currentPassword?: string
+  newPasswordHash?: string
+  confirmPassword?: string
 }
 
 export const authApi = {
@@ -66,9 +67,21 @@ export const authApi = {
   },
 
   /**
-   * Change password (POST /api/auth/change-password)
+   * Change password (POST /api/Auth/change-password)
    */
-  changePassword: async (payload: ChangePasswordPayload): Promise<void> => {
-    await apiClient.post('/api/auth/change-password', payload)
+  changePassword: async (payload: ChangePasswordRequest): Promise<BaseApiResponse> => {
+    const response = await apiClient.post<BaseApiResponse>('/api/Auth/change-password', payload)
+    return response.data
+  },
+
+  /**
+   * Verify invited employee token (POST /api/Auth/verify-employee/{Token})
+   */
+  verifyEmployee: async (token: string): Promise<BaseApiResponse> => {
+    const encodedToken = encodeURIComponent(token)
+    const response = await apiClient.post<BaseApiResponse>(
+      `/api/Auth/verify-employee/${encodedToken}`
+    )
+    return response.data
   },
 }

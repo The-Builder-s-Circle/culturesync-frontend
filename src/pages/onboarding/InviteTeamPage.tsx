@@ -1,19 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { Button, SelectDropdown, TextInput } from '../../components/ui'
 import { StepFooter, StepHeader } from '../../components/onboarding'
 import { IconPlus, IconTrash, IconMail } from '@tabler/icons-react'
 import { useOnboarding, useAuth } from '../../store'
-import { employeeApi, tenantApi } from '../../api'
+import { employeeApi, tenantApi, roleApi } from '../../api'
+import type { RoleDto } from '../../api'
 
 interface PendingInvite {
   id: string
   email: string
-  role: string
+  roleName: string
+  roleId?: string
 }
 
-const ROLE_OPTIONS = [
+const DEFAULT_ROLE_OPTIONS = [
   { label: 'Admin', value: 'Admin' },
   { label: 'HR Manager', value: 'HR Manager' },
   { label: 'Manager', value: 'Manager' },
@@ -26,11 +28,38 @@ export default function InviteTeamPage() {
   const { user } = useAuth()
   const { tenantId, setTenantId, markStepComplete } = useOnboarding()
 
+  const [availableRoles, setAvailableRoles] = useState<RoleDto[]>([])
+  const [roleOptions, setRoleOptions] = useState(DEFAULT_ROLE_OPTIONS)
   const [invites, setInvites] = useState<PendingInvite[]>([])
   const [draftEmail, setDraftEmail] = useState('')
-  const [draftRole, setDraftRole] = useState('Admin')
+  const [draftRoleValue, setDraftRoleValue] = useState('Admin')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Fetch dynamic roles from GET /api/Role/list
+  useEffect(() => {
+    let ignore = false
+    const fetchRoles = async () => {
+      try {
+        const res = await roleApi.getRoles()
+        if (!ignore && (res.isSuccess || res.succeeded) && Array.isArray(res.data) && res.data.length > 0) {
+          setAvailableRoles(res.data)
+          const options = res.data.map((r) => ({
+            label: r.name,
+            value: r.id || r.name,
+          }))
+          setRoleOptions(options)
+          setDraftRoleValue(options[0]?.value || 'Admin')
+        }
+      } catch (err) {
+        console.warn('Could not fetch roles from /api/Role/list, using defaults:', err)
+      }
+    }
+    fetchRoles()
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   const handleAddInvite = (e?: FormEvent) => {
     if (e) e.preventDefault()
@@ -42,13 +71,23 @@ export default function InviteTeamPage() {
       return
     }
 
+    // Resolve matching role label & ID
+    const matchedRole = availableRoles.find(
+      (r) => r.id === draftRoleValue || r.name.toLowerCase() === draftRoleValue.toLowerCase()
+    )
+    const selectedOption = roleOptions.find((opt) => opt.value === draftRoleValue)
+
+    const roleName = matchedRole?.name || selectedOption?.label || draftRoleValue
+    const roleId = matchedRole?.id
+
     setError(null)
     setInvites((prev) => [
       ...prev,
       {
         id: `inv-${Date.now()}`,
         email,
-        role: draftRole,
+        roleName,
+        roleId,
       },
     ])
     setDraftEmail('')
@@ -73,11 +112,9 @@ export default function InviteTeamPage() {
 
     setIsSubmitting(true)
     try {
-      let activeTenantId: string | null = tenantId || user?.tenantId || null
+      let activeTenantId = tenantId || user?.tenantId || null
       if (!activeTenantId) {
-        const lookup = await tenantApi.lookup()
-        const lookupData = lookup.data as { tenantId?: string; id?: string } | undefined
-        activeTenantId = lookupData?.tenantId || lookupData?.id || null
+        activeTenantId = await tenantApi.resolveActiveTenantId()
         if (activeTenantId) {
           setTenantId(activeTenantId)
         }
@@ -87,10 +124,11 @@ export default function InviteTeamPage() {
         throw new Error('Tenant identifier not found. Please complete previous setup steps.')
       }
 
-      // Dispatch invite calls sequentially or concurrently
+      // Dispatch invite calls
       for (const invite of invites) {
         await employeeApi.inviteEmployee(activeTenantId, {
           email: invite.email,
+          roleId: invite.roleId,
         })
       }
 
@@ -135,9 +173,9 @@ export default function InviteTeamPage() {
 
         <div className="w-full sm:w-44">
           <SelectDropdown
-            options={ROLE_OPTIONS}
-            value={draftRole}
-            onChange={(e) => setDraftRole(e.target.value)}
+            options={roleOptions}
+            value={draftRoleValue}
+            onChange={(e) => setDraftRoleValue(e.target.value)}
           />
         </div>
 
@@ -171,7 +209,7 @@ export default function InviteTeamPage() {
                   <div>
                     <p className="text-sm font-semibold text-slate-800">{inv.email}</p>
                     <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                      {inv.role}
+                      {inv.roleName}
                     </span>
                   </div>
                 </div>
