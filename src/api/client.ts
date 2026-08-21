@@ -44,6 +44,75 @@ export interface ApiErrorResponseData {
   data?: ApiValidationErrorItem[] | unknown
 }
 
+// Matches CultureSync.Domain.Wrapper.PaginatedResult<T>
+export interface PaginatedResult<T = unknown> {
+  succeeded?: boolean
+  isSuccess?: boolean
+  messages?: string[] | null
+  message?: string | null
+  errors?: string[] | null
+  currentPage?: number
+  totalPages?: number
+  totalCount?: number
+  pageSize?: number
+  hasPreviousPage?: boolean
+  hasNextPage?: boolean
+  data?: T[] | null
+}
+
+// Query params for the /paginated endpoints (PageNumber, PageSize,
+// OrderBy[], AdvancedSearch.Fields[], AdvancedSearch.Keyword, Keyword)
+export interface PaginatedQuery {
+  pageNumber?: number
+  pageSize?: number
+  orderBy?: string[]
+  searchFields?: string[]
+  searchKeyword?: string
+  keyword?: string
+}
+
+// Builds a flat query object using indexed keys so ASP.NET Core binds
+// the arrays correctly (axios' default OrderBy[]= form does not).
+export function buildPaginatedQuery(params: PaginatedQuery): Record<string, string> {
+  const query: Record<string, string> = {}
+  if (params.pageNumber != null) query.PageNumber = String(params.pageNumber)
+  if (params.pageSize != null) query.PageSize = String(params.pageSize)
+  params.orderBy?.forEach((value, i) => {
+    query[`OrderBy[${i}]`] = value
+  })
+  params.searchFields?.forEach((value, i) => {
+    query[`AdvancedSearch.Fields[${i}]`] = value
+  })
+  if (params.searchKeyword) query['AdvancedSearch.Keyword'] = params.searchKeyword
+  if (params.keyword) query.Keyword = params.keyword
+  return query
+}
+
+function extractApiErrorMessage(data?: ApiErrorResponseData | null): string | null {
+  if (!data) return null
+  if (typeof data.message === 'string' && data.message.trim()) return data.message
+  if (Array.isArray(data.messages) && data.messages.length > 0) {
+    const joined = data.messages
+      .filter((m) => typeof m === 'string' && m.trim())
+      .join('. ')
+    if (joined) return joined
+  }
+  if (Array.isArray(data.errors) && data.errors.length > 0) {
+    const joined = data.errors
+      .filter((m) => typeof m === 'string' && m.trim())
+      .join('. ')
+    if (joined) return joined
+  }
+  const problemDetails = data as Record<string, unknown>
+  if (typeof problemDetails.detail === 'string' && problemDetails.detail.trim()) {
+    return problemDetails.detail
+  }
+  if (typeof problemDetails.title === 'string' && problemDetails.title.trim()) {
+    return problemDetails.title
+  }
+  return null
+}
+
 // Response Interceptor: Explicit Status Code Handling (200, 400, 401)
 apiClient.interceptors.response.use(
   (response) => {
@@ -52,10 +121,7 @@ apiClient.interceptors.response.use(
     if (responseData) {
       if (responseData.isSuccess === false || responseData.succeeded === false) {
         const errorMsg =
-          responseData.message ||
-          (responseData.errors && responseData.errors.join('. ')) ||
-          (responseData.messages && responseData.messages.join('. ')) ||
-          'Request completed with errors.'
+          extractApiErrorMessage(responseData) ?? 'Request completed with errors.'
         return Promise.reject(new Error(errorMsg))
       }
     }
@@ -70,7 +136,7 @@ apiClient.interceptors.response.use(
     }
 
     const { status, data } = error.response
-    let extractedMessage = 'An unexpected error occurred. Please try again.'
+    let extractedMessage: string
 
     // HTTP 400 Bad Request (Validation Result Model)
     if (status === 400) {
@@ -80,12 +146,10 @@ apiClient.interceptors.response.use(
             .map((item) => item.message || item.field)
             .filter(Boolean)
             .join('. ')
-        } else if (Array.isArray(data.errors) && data.errors.length > 0) {
-          extractedMessage = data.errors.join('. ')
-        } else if (data.message) {
-          extractedMessage = data.message
         } else {
-          extractedMessage = 'Validation failed. Please check your inputs.'
+          extractedMessage =
+            extractApiErrorMessage(data) ??
+            'Validation failed. Please check your inputs.'
         }
       } else {
         extractedMessage = 'Bad Request. Please verify your form fields.'
@@ -100,13 +164,9 @@ apiClient.interceptors.response.use(
         // Ignore storage access errors
       }
 
-      if (data?.message) {
-        extractedMessage = data.message
-      } else if (Array.isArray(data?.errors) && data.errors.length > 0) {
-        extractedMessage = data.errors.join('. ')
-      } else {
-        extractedMessage = 'Session expired or invalid credentials. Please sign in again.'
-      }
+      extractedMessage =
+        extractApiErrorMessage(data) ??
+        'Session expired or invalid credentials. Please sign in again.'
 
       // Automatically redirect to login page if unauthorized on a protected route
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
@@ -114,10 +174,10 @@ apiClient.interceptors.response.use(
       }
     }
     // Fallback for other status codes (403, 404, 500, etc.)
-    else if (data?.message) {
-      extractedMessage = data.message
-    } else if (Array.isArray(data?.errors) && data.errors.length > 0) {
-      extractedMessage = data.errors.join('. ')
+    else {
+      extractedMessage =
+        extractApiErrorMessage(data) ??
+        'An unexpected error occurred. Please try again.'
     }
 
     return Promise.reject(new Error(extractedMessage))

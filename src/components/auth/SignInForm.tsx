@@ -4,7 +4,6 @@ import { useNavigate, Link } from 'react-router'
 import { Button, TextInput, CustomCheckbox } from '../ui'
 import { PasswordInput } from './PasswordInput'
 import { useAuth, getResumeRouteFromProgress } from '../../store'
-import { PasswordResetModal } from './PasswordResetModal'
 import { tenantApi } from '../../api'
 
 export const SignInForm: React.FC = () => {
@@ -16,7 +15,6 @@ export const SignInForm: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isRedirecting, setIsRedirecting] = useState(false)
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false)
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -38,6 +36,8 @@ export const SignInForm: React.FC = () => {
         } catch {
           navigate('/onboarding')
         }
+      } else {
+        setError('Invalid email or password.')
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Invalid email or password.'
@@ -83,13 +83,6 @@ export const SignInForm: React.FC = () => {
         <div className="relative">
           <div className="flex items-center justify-between text-sm mb-1">
             <span className="font-medium text-slate-700">Password *</span>
-            <button
-              type="button"
-              onClick={() => setIsResetModalOpen(true)}
-              className="text-xs font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none"
-            >
-              Forgot password?
-            </button>
           </div>
           <PasswordInput
             label=""
@@ -126,11 +119,6 @@ export const SignInForm: React.FC = () => {
           Create one free
         </Link>
       </p>
-
-      <PasswordResetModal
-        isOpen={isResetModalOpen}
-        onClose={() => setIsResetModalOpen(false)}
-      />
     </div>
   )
 }

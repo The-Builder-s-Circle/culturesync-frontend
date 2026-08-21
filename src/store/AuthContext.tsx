@@ -73,7 +73,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(tempUser)
         return true
       }
-      return false
+      throw new Error(
+        res.message ||
+          res.messages?.join('. ') ||
+          'Registration failed. Please verify your information.'
+      )
     } catch (e) {
       console.error('Registration failed', e)
       throw e
@@ -108,7 +112,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         sessionStorage.removeItem(STORAGE_OTP_EMAIL_KEY)
         return true
       }
-      return false
+      throw new Error(
+        res.message ||
+          res.messages?.join('. ') ||
+          'Invalid verification code. Please check your inbox.'
+      )
     } catch (e) {
       console.error('OTP verification failed', e)
       throw e
@@ -188,7 +196,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         return true
       }
-      return false
+      throw new Error(
+        res.message ||
+          res.messages?.join('. ') ||
+          'Invalid email or password.'
+      )
     } catch (e) {
       console.error('Login failed', e)
       throw e

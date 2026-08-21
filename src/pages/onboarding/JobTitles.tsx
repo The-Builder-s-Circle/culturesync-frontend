@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { StepFooter, StepHeader, JobTitleAccordion } from '../../components/onboarding'
 import {
@@ -208,6 +208,34 @@ export default function JobTitles() {
   const [draftInputs, setDraftInputs] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [savedTitlesCount, setSavedTitlesCount] = useState<number | null>(null)
+
+  // Load already-saved titles from the backend so returning users see their progress
+  useEffect(() => {
+    let cancelled = false
+
+    const loadExistingTitles = async () => {
+      const resolvedTenantId = tenantId || user?.tenantId
+      if (!resolvedTenantId) return
+
+      try {
+        const res = await jobTitleApi.getJobTitlesPaginated(resolvedTenantId, {
+          pageNumber: 1,
+          pageSize: 100,
+        })
+        if (!cancelled && Boolean(res.isSuccess || res.succeeded) && Array.isArray(res.data)) {
+          setSavedTitlesCount(res.data.length)
+        }
+      } catch {
+        // Non-blocking: onboarding continues with local state
+      }
+    }
+
+    loadExistingTitles()
+    return () => {
+      cancelled = true
+    }
+  }, [tenantId, user?.tenantId])
 
   const toggleAccordion = (dept: string) => {
     setOpenDepts((prev) => ({ ...prev, [dept]: !prev[dept] }))
@@ -352,8 +380,11 @@ export default function JobTitles() {
         navigate('/onboarding/import')
       } else {
         const msg =
-          (res.errors && res.errors.join('. ')) ||
           res.message ||
+          res.messages?.join('. ') ||
+          (Array.isArray(res.errors) && res.errors.length > 0
+            ? res.errors.join('. ')
+            : undefined) ||
           'Failed to save job titles. Please try again.'
         setError(msg)
       }
@@ -377,6 +408,13 @@ export default function JobTitles() {
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 sm:text-sm">
           {error}
+        </div>
+      )}
+
+      {savedTitlesCount !== null && savedTitlesCount > 0 && (
+        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 sm:text-sm">
+          You have {savedTitlesCount} job title{savedTitlesCount === 1 ? '' : 's'} already
+          saved. Review and update them below before continuing.
         </div>
       )}
 
