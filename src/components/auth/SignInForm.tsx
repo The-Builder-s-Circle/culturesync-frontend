@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router'
-import { Button, TextInput, CustomCheckbox } from '../ui'
+import { Button, TextInput, CustomCheckbox, Logo } from '../ui'
 import { PasswordInput } from './PasswordInput'
 import { useAuth, getResumeRouteFromProgress } from '../../store'
 import { tenantApi } from '../../api'
@@ -56,11 +56,7 @@ export const SignInForm: React.FC = () => {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in to CultureSync</h2>
-        <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-slate-500 font-mono bg-slate-100 px-2.5 py-1 rounded-md">
-          <span>Demo credentials: any email +</span>
-          <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-800 font-bold">demo1234</span>
-        </div>
+        <Logo />
       </div>
 
       {error && (

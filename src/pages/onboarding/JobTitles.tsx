@@ -1,6 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router'
+import { Button } from '../../components/ui'
 import { StepFooter, StepHeader, JobTitleAccordion } from '../../components/onboarding'
+import { IconCheck } from '@tabler/icons-react'
 import {
   useOnboarding,
   useAuth,
@@ -8,143 +10,7 @@ import {
   getTenantCustomDeptsKey,
   getTenantJobTitlesKey,
 } from '../../store'
-import { jobTitleApi, tenantApi } from '../../api'
-
-const PREDEFINED_ID_TO_NAME: Record<string, string> = {
-  eng: 'Engineering',
-  prod: 'Product & Design',
-  sales: 'Sales & Revenue',
-  mkt: 'Marketing',
-  hr: 'Human Resources',
-  fin: 'Finance & Accounting',
-  cs: 'Customer Success',
-  legal: 'Legal & Compliance',
-  ops: 'Operations',
-  exec: 'Executive',
-  data: 'Data & Analytics',
-  sec: 'Security',
-  it: 'IT & Infrastructure',
-  rd: 'Research & Development',
-  biz: 'Business Development',
-}
-
-const DEPARTMENT_TITLE_SUGGESTIONS: Record<string, string[]> = {
-  'Engineering': [
-    'Software Engineer',
-    'Senior Software Engineer',
-    'Frontend Developer',
-    'Backend Developer',
-    'DevOps Engineer',
-    'Engineering Manager',
-    'QA Engineer',
-    'Tech Lead',
-    'VP of Engineering',
-    'CTO',
-  ],
-  'Product & Design': [
-    'Product Manager',
-    'Senior Product Manager',
-    'Product Designer',
-    'UI/UX Designer',
-    'Design Lead',
-    'Head of Product',
-  ],
-  'Sales & Revenue': [
-    'Sales Representative',
-    'Account Executive',
-    'Senior Account Executive',
-    'Sales Manager',
-    'Business Development Manager',
-    'Director of Sales',
-    'VP of Sales',
-    'Chief Revenue Officer',
-  ],
-  'Marketing': [
-    'Marketing Specialist',
-    'Content Strategist',
-    'Growth Marketer',
-    'SEO Specialist',
-    'Marketing Manager',
-    'Director of Marketing',
-    'CMO',
-  ],
-  'Human Resources': [
-    'HR Specialist',
-    'HR Generalist',
-    'Talent Acquisition Specialist',
-    'People Operations Lead',
-    'HR Manager',
-    'Head of People',
-  ],
-  'Finance & Accounting': [
-    'Accountant',
-    'Financial Analyst',
-    'Senior Accountant',
-    'Accounting Manager',
-    'Finance Director',
-    'Controller',
-    'CFO',
-  ],
-  'Customer Success': [
-    'Customer Support Specialist',
-    'Customer Success Manager',
-    'Implementation Specialist',
-    'Customer Support Lead',
-    'Director of Customer Success',
-  ],
-  'Legal & Compliance': [
-    'Legal Counsel',
-    'Compliance Officer',
-    'Senior Legal Counsel',
-    'Head of Compliance',
-    'General Counsel',
-  ],
-  'Operations': [
-    'Operations Coordinator',
-    'Operations Manager',
-    'Director of Operations',
-    'COO',
-  ],
-  'Executive': [
-    'CEO',
-    'Chief Operating Officer',
-    'Chief Technology Officer',
-    'Chief Financial Officer',
-    'Managing Director',
-  ],
-  'Data & Analytics': [
-    'Data Analyst',
-    'Data Scientist',
-    'BI Analyst',
-    'Data Engineer',
-    'Head of Data',
-  ],
-  'Security': [
-    'Security Analyst',
-    'Cybersecurity Engineer',
-    'Information Security Manager',
-    'CISO',
-  ],
-  'IT & Infrastructure': [
-    'IT Support Specialist',
-    'Systems Administrator',
-    'Network Engineer',
-    'IT Manager',
-    'Head of IT',
-  ],
-  'Research & Development': [
-    'R&D Specialist',
-    'Research Scientist',
-    'R&D Engineer',
-    'Head of R&D',
-  ],
-  'Business Development': [
-    'Business Development Representative',
-    'Partnership Manager',
-    'Strategic Accounts Manager',
-    'Director of Business Development',
-  ],
-}
+import { jobTitleApi, tenantApi, getTenantLookup } from '../../api'
 
 interface StoredDeptTitles {
   titles: string[]
@@ -162,26 +28,44 @@ export default function JobTitles() {
   const customDeptsKey = getTenantCustomDeptsKey(activeTenantId)
   const jobTitlesKey = getTenantJobTitlesKey(activeTenantId)
 
+  // Canonical job titles come from the backend lookup - never hardcoded
+  const [canonicalJobTitles, setCanonicalJobTitles] = useState<string[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    getTenantLookup()
+      .then((res) => {
+        if (!cancelled && (res.isSuccess || res.succeeded)) {
+          const values = (res.data?.jobTitles ?? []).map((option) => option.value)
+          if (values.length > 0) setCanonicalJobTitles(values)
+        }
+      })
+      .catch(() => {
+        // Lookup offline - suggestions stay hidden, manual entry still works
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   // 1. Resolve departments chosen by user in previous onboarding step
+  // (ids stored by DepartmentsPage are the canonical department names)
   const activeDepartments = useMemo<string[]>(() => {
     try {
       const storedPredefined = localStorage.getItem(selectedDeptsKey)
       const storedCustom = localStorage.getItem(customDeptsKey)
 
-      const predefinedIds = storedPredefined ? (JSON.parse(storedPredefined) as string[]) : []
+      const predefinedNames = storedPredefined
+        ? (JSON.parse(storedPredefined) as string[])
+        : []
       const customDepts = storedCustom ? (JSON.parse(storedCustom) as string[]) : []
-
-      const predefinedNames = predefinedIds
-        .map((id) => PREDEFINED_ID_TO_NAME[id])
-        .filter(Boolean)
 
       const merged = Array.from(new Set([...predefinedNames, ...customDepts]))
       if (merged.length > 0) return merged
     } catch {
       // fallback
     }
-    // Fallback if user arrived directly
-    return ['Business Development', 'Operations', 'Sales & Revenue']
+    return []
   }, [selectedDeptsKey, customDeptsKey])
 
   // 2. Department titles state (strictly tenant-scoped)
@@ -207,6 +91,7 @@ export default function JobTitles() {
   // 4. Draft custom input per department
   const [draftInputs, setDraftInputs] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedTitlesCount, setSavedTitlesCount] = useState<number | null>(null)
 
@@ -280,8 +165,7 @@ export default function JobTitles() {
         return prev
       }
 
-      const standardSuggestions = DEPARTMENT_TITLE_SUGGESTIONS[dept] || []
-      const isStandard = standardSuggestions.some(
+      const isStandard = canonicalJobTitles.some(
         (s) => s.toLowerCase() === trimmed.toLowerCase()
       )
 
@@ -326,7 +210,7 @@ export default function JobTitles() {
     return Object.values(deptTitles).reduce((sum, item) => sum + (item.titles?.length || 0), 0)
   }, [deptTitles])
 
-  const handleContinue = async () => {
+  const handleSave = async () => {
     setError(null)
     if (totalTitlesCount === 0) {
       setError('Please add at least one job title to continue.')
@@ -376,8 +260,7 @@ export default function JobTitles() {
       const isOk = Boolean(res.isSuccess || res.succeeded)
 
       if (isOk) {
-        markStepComplete('job-titles')
-        navigate('/onboarding/import')
+        setIsSaved(true)
       } else {
         const msg =
           res.message ||
@@ -395,6 +278,11 @@ export default function JobTitles() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleContinue = () => {
+    markStepComplete('job-titles')
+    navigate('/onboarding/import')
   }
 
   return (
@@ -419,17 +307,17 @@ export default function JobTitles() {
       )}
 
       {/* Accordion List for each user-selected Department */}
-      <div className="mt-8 space-y-3.5">
-        {activeDepartments.map((dept) => {
+      {activeDepartments.length === 0 ? (
+        <div className="mt-8 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 sm:text-sm">
+          No departments selected yet. Go back to the departments step and pick at least one
+          before adding job titles.
+        </div>
+      ) : (
+        <div className="mt-8 space-y-3.5">
+          {activeDepartments.map((dept) => {
           const isOpen = Boolean(openDepts[dept])
           const currentTitles = deptTitles[dept]?.titles || []
-          const suggestions = (DEPARTMENT_TITLE_SUGGESTIONS[dept] || [
-            'Manager',
-            'Lead',
-            'Specialist',
-            'Coordinator',
-            'Associate',
-          ]).filter((s) => !currentTitles.includes(s))
+          const suggestions = canonicalJobTitles.filter((s) => !currentTitles.includes(s))
 
           return (
             <JobTitleAccordion
@@ -449,14 +337,33 @@ export default function JobTitles() {
             />
           )
         })}
+        </div>
+      )}
+
+      <div className="mt-6">
+        <Button
+          variant="secondary"
+          disabled={totalTitlesCount === 0 || isSaved}
+          isLoading={isSubmitting}
+          onClick={handleSave}
+          className="w-full sm:w-auto"
+        >
+          {isSaved ? (
+            <>
+              <IconCheck className="size-4" aria-hidden="true" />
+              Job titles saved
+            </>
+          ) : (
+            'Save job titles'
+          )}
+        </Button>
       </div>
 
       {/* Footer Navigation */}
       <StepFooter
         backTo="/onboarding/departments"
         onContinue={handleContinue}
-        continueDisabled={totalTitlesCount === 0}
-        isLoading={isSubmitting}
+        continueDisabled={!isSaved}
       />
     </div>
   )

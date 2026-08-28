@@ -10,7 +10,7 @@ export default function OnboardingLayout() {
   const navigate = useNavigate()
   const activeIndex = findStepIndex(pathname)
   const activeStep = ONBOARDING_STEPS[activeIndex]
-  const { completedSteps, percentComplete } = useOnboarding()
+  const { completedSteps, percentComplete, isStepUnlocked } = useOnboarding()
   const { user, logout } = useAuth()
 
   const companyDisplayName = user?.companyName || 'Your Organization'
@@ -22,9 +22,9 @@ export default function OnboardingLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-canvas font-sans md:flex">
+    <div className="h-screen overflow-hidden bg-canvas font-sans md:flex">
       {/* ---------- Left rail: setup steps ---------- */}
-      <aside className="hidden w-72 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
+      <aside className="hidden h-full w-72 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="border-b border-slate-200 p-6">
           <Logo />
           <p className="mt-1 text-xs font-medium text-slate-500">Organization Setup</p>
@@ -38,7 +38,26 @@ export default function OnboardingLayout() {
             {ONBOARDING_STEPS.map((step, i) => {
               const isDone = completedSteps.includes(step.id)
               const isActive = i === activeIndex
-              const status = isDone ? 'complete' : isActive ? 'active' : 'pending'
+              const unlocked = isStepUnlocked(step.id)
+              const status = isDone ? 'complete' : isActive && unlocked ? 'active' : 'pending'
+
+              if (!unlocked) {
+                return (
+                  <span
+                    key={step.id}
+                    aria-disabled="true"
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 opacity-40 select-none cursor-not-allowed"
+                  >
+                    <StepDot step={step.number} status="pending" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">{step.title}</span>
+                      <span className="block truncate text-xs text-slate-400">
+                        {step.subtitle}
+                      </span>
+                    </span>
+                  </span>
+                )
+              }
 
               return (
                 <NavLink
@@ -88,9 +107,9 @@ export default function OnboardingLayout() {
       </aside>
 
       {/* ---------- Main column ---------- */}
-      <main className="flex min-h-screen flex-1 flex-col">
+      <main className="flex h-full min-h-0 flex-1 flex-col">
         {/* Mobile top bar */}
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 md:hidden">
+        <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-4 md:hidden">
           <Logo className="[&>div]:!size-8" />
           <div className="flex items-center gap-3">
             <span className="font-mono text-xs font-semibold uppercase tracking-widest text-indigo-600">
@@ -109,7 +128,7 @@ export default function OnboardingLayout() {
         </header>
 
         {/* Step header */}
-        <section className="border-b border-slate-200 bg-white px-6 py-5 sm:px-10">
+        <section className="shrink-0 border-b border-slate-200 bg-white px-6 py-5 sm:px-10">
           <div className="mx-auto flex max-w-3xl items-end justify-between gap-4">
             <div>
               <p className="font-mono text-xs font-semibold uppercase tracking-widest text-indigo-600">
@@ -134,7 +153,7 @@ export default function OnboardingLayout() {
         </section>
 
         {/* Page content */}
-        <section className="flex-1 px-6 py-8 sm:px-10 sm:py-10">
+        <section className="min-h-0 flex-1 overflow-y-auto px-6 py-8 sm:px-10 sm:py-10">
           <div className="mx-auto w-full max-w-3xl animate-fade-up">
             <Outlet />
           </div>

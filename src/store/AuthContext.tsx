@@ -217,10 +217,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem(STORAGE_TOKEN_KEY)
     localStorage.removeItem(STORAGE_USER_KEY)
     localStorage.removeItem(STORAGE_TENANT_ID_KEY)
-    localStorage.removeItem('culturesync_onboarding_progress')
-    localStorage.removeItem('culturesync_selected_departments')
-    localStorage.removeItem('culturesync_custom_departments')
-    localStorage.removeItem('culturesync_job_titles')
+    const onboardingPrefixes = [
+      'culturesync_onboarding_progress',
+      'culturesync_selected_departments',
+      'culturesync_custom_departments',
+      'culturesync_job_titles',
+    ]
+    const keysToRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && onboardingPrefixes.some((p) => key.startsWith(p))) {
+        keysToRemove.push(key)
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key))
     sessionStorage.removeItem(STORAGE_OTP_EMAIL_KEY)
   }
 

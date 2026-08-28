@@ -1,70 +1,26 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { SelectDropdown, TextInput } from '../../components/ui'
+import { Button, SelectDropdown, TextInput } from '../../components/ui'
 import { StepFooter, StepHeader, LogoUpload } from '../../components/onboarding'
+import { IconCheck } from '@tabler/icons-react'
 import { useAuth, useOnboarding } from '../../store'
-import { tenantApi, extractTenantId } from '../../api'
+import { tenantApi, getTenantLookup, extractTenantId } from '../../api'
 import type { LookupOption, TenantLookupData } from '../../api'
-
-const FALLBACK_INDUSTRIES: LookupOption[] = [
-  { value: 'Technology & Software', label: 'Technology & Software' },
-  { value: 'Healthcare & Life Sciences', label: 'Healthcare & Life Sciences' },
-  { value: 'Financial Services', label: 'Financial Services' },
-  { value: 'Professional Services', label: 'Professional Services' },
-  { value: 'Education', label: 'Education' },
-  { value: 'Retail & E-Commerce', label: 'Retail & E-Commerce' },
-  { value: 'Manufacturing', label: 'Manufacturing' },
-  { value: 'Government & Public Sector', label: 'Government & Public Sector' },
-  { value: 'Media & Entertainment', label: 'Media & Entertainment' },
-  { value: 'Real Estate', label: 'Real Estate' },
-  { value: 'Hospitality & Travel', label: 'Hospitality & Travel' },
-  { value: 'Non-Profit', label: 'Non-Profit' },
-]
-
-const FALLBACK_COMPANY_SIZES: LookupOption[] = [
-  { value: '1', label: '1 - 10 employees' },
-  { value: '2', label: '11 - 50 employees' },
-  { value: '3', label: '51 - 200 employees' },
-  { value: '4', label: '201 - 500 employees' },
-  { value: '5', label: '501+ employees' },
-]
-
-const FALLBACK_TIMEZONES: LookupOption[] = [
-  { value: 'America/New_York', label: '(UTC-05:00) Eastern Time (New York)' },
-  { value: 'America/Chicago', label: '(UTC-06:00) Central Time (Chicago)' },
-  { value: 'America/Denver', label: '(UTC-07:00) Mountain Time (Denver)' },
-  { value: 'America/Los_Angeles', label: '(UTC-08:00) Pacific Time (Los Angeles)' },
-  { value: 'Europe/London', label: '(UTC+00:00) United Kingdom Time' },
-  { value: 'Europe/Paris', label: '(UTC+01:00) Central European Time (Paris)' },
-  { value: 'Africa/Lagos', label: '(UTC+01:00) West Africa Standard Time (Lagos)' },
-  { value: 'Asia/Dubai', label: '(UTC+04:00) Gulf Standard Time (Dubai)' },
-  { value: 'Asia/Singapore', label: '(UTC+08:00) Singapore Standard Time' },
-  { value: 'Asia/Tokyo', label: '(UTC+09:00) Japan Standard Time (Tokyo)' },
-  { value: 'Australia/Sydney', label: '(UTC+10:00) Eastern Australia Time (Sydney)' },
-]
-
-const FALLBACK_CURRENCIES: LookupOption[] = [
-  { value: 'USD', label: 'USD ($)' },
-  { value: 'EUR', label: 'System Euro (€)' },
-  { value: 'GBP', label: 'Pound (£)' },
-  { value: 'NGN', label: 'Naira (₦)' },
-  { value: 'CAD', label: 'Canadian Dollar (C$)' },
-  { value: 'AUD', label: 'Australian Dollar (A$)' },
-]
 
 export default function OrganizationPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { tenantId, markStepComplete, setTenantId } = useOnboarding()
 
-  const [industries, setIndustries] = useState<LookupOption[]>(FALLBACK_INDUSTRIES)
-  const [companySizes, setCompanySizes] = useState<LookupOption[]>(FALLBACK_COMPANY_SIZES)
-  const [timeZones, setTimeZones] = useState<LookupOption[]>(FALLBACK_TIMEZONES)
-  const [currencies, setCurrencies] = useState<LookupOption[]>(FALLBACK_CURRENCIES)
+  const [industries, setIndustries] = useState<LookupOption[]>([])
+  const [companySizes, setCompanySizes] = useState<LookupOption[]>([])
+  const [timeZones, setTimeZones] = useState<LookupOption[]>([])
+  const [currencies, setCurrencies] = useState<LookupOption[]>([])
 
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const activeTenantId = tenantId || user?.tenantId || null
@@ -81,11 +37,11 @@ export default function OrganizationPage() {
     }
     return {
       companyName: user?.companyName || '',
-      industry: 'Technology & Software',
-      companySize: '1',
+      industry: '',
+      companySize: '',
       hqLocation: '',
-      timezone: 'America/New_York',
-      currency: 'USD',
+      timezone: '',
+      currency: '',
       website: '',
     }
   })
@@ -95,7 +51,7 @@ export default function OrganizationPage() {
     let isMounted = true
     const loadTenantLookup = async () => {
       try {
-        const res = await tenantApi.lookup()
+        const res = await getTenantLookup()
         if ((res.isSuccess || res.succeeded) && res.data) {
           const data = res.data as TenantLookupData
           const resolvedTenantId = extractTenantId(data) || data.tenantId || data.id
@@ -120,11 +76,27 @@ export default function OrganizationPage() {
             setForm((prev: typeof form) => ({
               ...prev,
               companyName: data.name || data.companyName || prev.companyName,
-              industry: data.industry || prev.industry || data.industries?.[0]?.value || 'Technology & Software',
-              companySize: data.companySize || prev.companySize || data.companySizes?.[0]?.value || '1',
+              industry:
+                data.industry ||
+                prev.industry ||
+                (Array.isArray(data.industries) ? data.industries[0]?.value : undefined) ||
+                '',
+              companySize:
+                data.companySize ||
+                prev.companySize ||
+                (Array.isArray(data.companySizes) ? data.companySizes[0]?.value : undefined) ||
+                '',
               hqLocation: data.hqLocation || prev.hqLocation,
-              timezone: data.timeZoneId || prev.timezone || data.timeZones?.[0]?.value || 'America/New_York',
-              currency: data.defaultCurrency || prev.currency || data.currencies?.[0]?.value || 'USD',
+              timezone:
+                data.timeZoneId ||
+                prev.timezone ||
+                (Array.isArray(data.timeZones) ? data.timeZones[0]?.value : undefined) ||
+                '',
+              currency:
+                data.defaultCurrency ||
+                prev.currency ||
+                (Array.isArray(data.currencies) ? data.currencies[0]?.value : undefined) ||
+                '',
             }))
 
             if (data.logoUrl) {
@@ -164,7 +136,7 @@ export default function OrganizationPage() {
     setLogoPreview(URL.createObjectURL(file))
   }
 
-  const handleContinue = async () => {
+  const handleSave = async () => {
     setError(null)
     if (!requiredFilled) {
       setError('Please fill in all required fields.')
@@ -194,8 +166,7 @@ export default function OrganizationPage() {
       const isOk = Boolean(res.isSuccess || res.succeeded)
 
       if (isOk) {
-        markStepComplete('organization')
-        navigate('/onboarding/departments')
+        setIsSaved(true)
       } else {
         setError(res.message || 'Failed to update organization profile. Please try again.')
       }
@@ -208,6 +179,11 @@ export default function OrganizationPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleContinue = () => {
+    markStepComplete('organization')
+    navigate('/onboarding/departments')
   }
 
   return (
@@ -286,12 +262,30 @@ export default function OrganizationPage() {
         />
       </div>
 
+      <div className="mt-8">
+        <Button
+          variant="secondary"
+          disabled={!requiredFilled || isSaved}
+          isLoading={isSubmitting}
+          onClick={handleSave}
+          className="w-full sm:w-auto"
+        >
+          {isSaved ? (
+            <>
+              <IconCheck className="size-4" aria-hidden="true" />
+              Profile saved
+            </>
+          ) : (
+            'Save profile'
+          )}
+        </Button>
+      </div>
+
       <StepFooter
         backTo="/auth/login"
         backLabel="Back to login"
         onContinue={handleContinue}
-        continueDisabled={!requiredFilled}
-        isLoading={isSubmitting}
+        continueDisabled={!isSaved}
       />
     </div>
   )

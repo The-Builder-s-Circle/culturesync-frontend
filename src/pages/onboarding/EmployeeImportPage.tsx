@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { TextInput } from '../../components/ui'
+import { Button, TextInput, SelectDropdown } from '../../components/ui'
+import type { SelectOption } from '../../components/ui'
 import { StepFooter, StepHeader } from '../../components/onboarding'
 import {
   IconFileSpreadsheet,
@@ -11,9 +12,10 @@ import {
   IconPlus,
   IconTrash,
   IconFileCheck,
+  IconCheck,
 } from '@tabler/icons-react'
 import { useOnboarding, useAuth } from '../../store'
-import { employeeApi, tenantApi } from '../../api'
+import { employeeApi, tenantApi, getTenantLookup } from '../../api'
 import type { EmployeeImportDto } from '../../api'
 
 type Mode = 'upload' | 'manual'
@@ -26,22 +28,36 @@ interface ManualRow {
   jobTitle: string
 }
 
-const SAMPLE_CSV = `first_name,last_name,email,department,job_title,hire_date
-Alexandra,Morgan,alex@company.com,Engineering,Senior Engineer,2025-01-15
-Marcus,Williams,marcus@company.com,Sales,Account Executive,2025-02-01
-Priya,Patel,priya@company.com,Product,Product Manager,2025-02-15`
+const SAMPLE_CSV = [
+  'first_name,last_name,email,department,job_title,phone_number,employee_number,manager_email,hire_date',
+  'Alexandra,Morgan,alex@company.com,Engineering,Software Engineer,,EMP001,,2025-01-15',
+  'Marcus,Williams,marcus@company.com,Sales & Revenue,Sales Executive,,EMP002,alex@company.com,2025-02-01',
+  'Priya,Patel,priya@company.com,Marketing,Marketing Manager,,EMP003,alex@company.com,2025-02-15',
+].join('\n')
 
 export default function EmployeeImportPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { tenantId, setTenantId, markStepComplete } = useOnboarding()
+  const { tenantId, setTenantId, markStepComplete, skipStep } = useOnboarding()
 
   const [mode, setMode] = useState<Mode>('upload')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [validatedRows, setValidatedRows] = useState<EmployeeImportDto[]>([])
   const [isValidating, setIsValidating] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hint, setHint] = useState<string | null>(null)
+
+  const applyErrorHint = (message: string) => {
+    if (/does not exist/i.test(message)) {
+      setHint(
+        'Departments and job titles must be created in earlier setup steps, and a manager must already be an employee before others can report to them. Import managers first (leave their Manager Email empty), then import their reports.'
+      )
+    } else {
+      setHint(null)
+    }
+  }
 
   // Manual entry rows state (defaults to 3 empty rows matching screenshot)
   const [rows, setRows] = useState<ManualRow[]>([
@@ -49,6 +65,23 @@ export default function EmployeeImportPage() {
     { id: 'row-2', fullName: '', email: '', department: '', jobTitle: '' },
     { id: 'row-3', fullName: '', email: '', department: '', jobTitle: '' },
   ])
+
+  const [lookupDepartments, setLookupDepartments] = useState<SelectOption[]>([])
+  const [lookupJobTitles, setLookupJobTitles] = useState<SelectOption[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    getTenantLookup()
+      .then((res) => {
+        if (cancelled || !res.data) return
+        setLookupDepartments((res.data.departments ?? []).map((o) => ({ value: o.value, label: o.label })))
+        setLookupJobTitles((res.data.jobTitles ?? []).map((o) => ({ value: o.value, label: o.label })))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const addRow = () => {
     if (rows.length >= 20) return
@@ -78,6 +111,7 @@ export default function EmployeeImportPage() {
 
   const handleFileUpload = async (file: File) => {
     setError(null)
+    setHint(null)
     setSelectedFile(file)
     setIsValidating(true)
 
@@ -96,74 +130,35 @@ export default function EmployeeImportPage() {
 
       const res = await employeeApi.validateImport(activeTenantId, file)
       if ((res.isSuccess || res.succeeded) && res.data) {
-        setValidatedRows(res.data)
+        const employees = (res.data.rows ?? [])
+          .map((row) => row.employee)
+          .filter((emp): emp is EmployeeImportDto => Boolean(emp))
+        setValidatedRows(employees)
       } else {
-        setError(res.message || 'Validation failed. Please check the file formatting.')
+        const message = res.message || 'Validation failed. Please check the file formatting.'
+        setError(message)
+        applyErrorHint(message)
       }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Failed to validate file. Please try again.'
       setError(message)
+      applyErrorHint(message)
     } finally {
       setIsValidating(false)
     }
   }
 
   const handleSkip = () => {
-    markStepComplete('import')
+    skipStep('import')
     navigate('/onboarding/invite')
   }
 
-  const handleContinue = async () => {
+  const handleConfirmImport = async () => {
     setError(null)
-
-    // 1. If in Upload mode with validated rows
-    if (mode === 'upload') {
-      if (!selectedFile) {
-        // Allow skipping if no file selected
-        handleSkip()
-        return
-      }
-
-      setIsSubmitting(true)
-      try {
-        let activeTenantId = tenantId || user?.tenantId || null
-        if (!activeTenantId) {
-          activeTenantId = await tenantApi.resolveActiveTenantId()
-          if (activeTenantId) {
-            setTenantId(activeTenantId)
-          }
-        }
-
-        if (!activeTenantId) {
-          throw new Error('Tenant identifier not found.')
-        }
-
-        const res = await employeeApi.confirmImport(activeTenantId, validatedRows)
-        if (res.isSuccess || res.succeeded) {
-          markStepComplete('import')
-          navigate('/onboarding/invite')
-        } else {
-          setError(res.message || 'Failed to import roster. Please try again.')
-        }
-      } catch (err: unknown) {
-        const message =
-          err instanceof Error ? err.message : 'Failed to import roster. Please try again.'
-        setError(message)
-      } finally {
-        setIsSubmitting(false)
-      }
-      return
-    }
-
-    // 2. If in Manual mode
-    const filledRows = rows.filter((r) => r.fullName.trim() || r.email.trim())
-    if (filledRows.length === 0) {
-      handleSkip()
-      return
-    }
-
+    setHint(null)
     setIsSubmitting(true)
+
     try {
       let activeTenantId = tenantId || user?.tenantId || null
       if (!activeTenantId) {
@@ -177,34 +172,48 @@ export default function EmployeeImportPage() {
         throw new Error('Tenant identifier not found.')
       }
 
-      const employeesPayload: EmployeeImportDto[] = filledRows.map((r, idx) => {
-        const parts = r.fullName.trim().split(' ')
-        const firstName = parts[0] || ''
-        const lastName = parts.slice(1).join(' ') || ''
-        return {
-          rowNumber: idx + 1,
-          firstName,
-          lastName,
-          email: r.email.trim(),
-          department: r.department.trim() || null,
-          jobTitle: r.jobTitle.trim() || null,
-        }
-      })
+      let payload: EmployeeImportDto[]
 
-      const res = await employeeApi.confirmImport(activeTenantId, employeesPayload)
-      if (res.isSuccess || res.succeeded) {
-        markStepComplete('import')
-        navigate('/onboarding/invite')
+      if (mode === 'upload') {
+        payload = validatedRows
       } else {
-        setError(res.message || 'Failed to import employees. Please try again.')
+        const filledRows = rows.filter((r) => r.fullName.trim() || r.email.trim())
+        payload = filledRows.map((r, idx) => {
+          const parts = r.fullName.trim().split(' ')
+          const firstName = parts[0] || ''
+          const lastName = parts.slice(1).join(' ') || ''
+          return {
+            rowNumber: idx + 1,
+            firstName,
+            lastName,
+            email: r.email.trim(),
+            department: r.department.trim(),
+            jobTitle: r.jobTitle.trim(),
+          }
+        })
+      }
+
+      const res = await employeeApi.confirmImport(activeTenantId, payload)
+      if (res.isSuccess || res.succeeded) {
+        setIsSaved(true)
+      } else {
+        const message = res.message || 'Failed to import employees. Please try again.'
+        setError(message)
+        applyErrorHint(message)
       }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Failed to import employees. Please try again.'
       setError(message)
+      applyErrorHint(message)
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleContinue = () => {
+    markStepComplete('import')
+    navigate('/onboarding/invite')
   }
 
   return (
@@ -255,7 +264,29 @@ export default function EmployeeImportPage() {
 
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 sm:text-sm">
-          {error}
+          {error.includes('\n') ? (
+            <>
+              <p className="font-semibold">Some rows have problems:</p>
+              <ul className="mt-1.5 max-h-44 list-disc space-y-1 overflow-y-auto pl-4">
+                {error
+                  .split('\n')
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+              </ul>
+            </>
+          ) : (
+            error
+          )}
+        </div>
+      )}
+
+      {hint && !error?.includes('\n') && (
+        <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 sm:text-sm">
+          <p className="font-semibold">How to fix this</p>
+          <p className="mt-1">{hint}</p>
         </div>
       )}
 
@@ -298,49 +329,69 @@ export default function EmployeeImportPage() {
                 <IconFileCheck className="size-4 text-emerald-600" />
                 <span>{validatedRows.length} employee records validated and ready to import</span>
               </div>
+              <div className="mt-3">
+                <Button
+                  variant="secondary"
+                  disabled={isSaved}
+                  isLoading={isSubmitting}
+                  onClick={handleConfirmImport}
+                  className="w-full sm:w-auto"
+                >
+                  {isSaved ? (
+                    <>
+                      <IconCheck className="size-4" aria-hidden="true" />
+                      Import confirmed
+                    </>
+                  ) : (
+                    'Confirm import'
+                  )}
+                </Button>
+              </div>
             </div>
           )}
 
           {/* Expected column format table */}
           <div>
-            <p className="mb-2 text-xs font-semibold text-slate-600">Expected column format:</p>
-            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <p className="mb-2 text-xs font-semibold text-slate-600">
+              {validatedRows.length > 0
+                ? 'Imported employee records:'
+                : 'Expected column format:'}
+            </p>
+            <div className="max-h-80 overflow-auto rounded-2xl border border-slate-200 bg-white">
               <table className="w-full text-left text-xs">
-                <thead className="border-b border-slate-100 bg-slate-50/60 font-semibold text-slate-700">
+                <thead className="sticky top-0 border-b border-slate-100 bg-slate-50/60 font-semibold text-slate-700">
                   <tr>
                     <th className="p-3">First Name</th>
                     <th className="p-3">Last Name</th>
                     <th className="p-3">Email</th>
                     <th className="p-3">Department</th>
                     <th className="p-3">Job Title</th>
-                    <th className="p-3">Start Date</th>
+                    <th className="p-3">Employee Number</th>
+                    <th className="p-3">Manager Email</th>
+                    <th className="p-3">Hire Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-mono text-slate-600">
-                  <tr>
-                    <td className="p-3">Alexandra</td>
-                    <td className="p-3">Morgan</td>
-                    <td className="p-3">alex@company.com</td>
-                    <td className="p-3">Engineering</td>
-                    <td className="p-3">Senior Engineer</td>
-                    <td className="p-3">2025-01-15</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3">Marcus</td>
-                    <td className="p-3">Williams</td>
-                    <td className="p-3">marcus@company.com</td>
-                    <td className="p-3">Sales</td>
-                    <td className="p-3">Account Executive</td>
-                    <td className="p-3">2025-02-01</td>
-                  </tr>
-                  <tr>
-                    <td className="p-3">Priya</td>
-                    <td className="p-3">Patel</td>
-                    <td className="p-3">priya@company.com</td>
-                    <td className="p-3">Product</td>
-                    <td className="p-3">Product Manager</td>
-                    <td className="p-3">2025-02-15</td>
-                  </tr>
+                  {validatedRows.length > 0 ? (
+                    validatedRows.map((emp, i) => (
+                      <tr key={i}>
+                        <td className="p-3">{emp.firstName ?? ''}</td>
+                        <td className="p-3">{emp.lastName ?? ''}</td>
+                        <td className="p-3">{emp.email ?? ''}</td>
+                        <td className="p-3">{emp.department ?? ''}</td>
+                        <td className="p-3">{emp.jobTitle ?? ''}</td>
+                        <td className="p-3">{emp.employeeNumber ?? ''}</td>
+                        <td className="p-3">{emp.managerEmail ?? ''}</td>
+                        <td className="p-3">{emp.hireDate ?? ''}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="p-3 text-center font-sans text-xs text-slate-400">
+                        Upload a valid file to preview your employee records here.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -352,6 +403,12 @@ export default function EmployeeImportPage() {
             >
               Download CSV template
             </button>
+
+            <p className="mt-2 text-xs text-slate-500">
+              Tip: departments and job titles must already exist (create them in the previous
+              steps). For managers, list them in an earlier row than their reports — or leave{' '}
+              <span className="font-mono">manager_email</span> empty and re-import later.
+            </p>
           </div>
         </div>
       )}
@@ -393,16 +450,18 @@ export default function EmployeeImportPage() {
                     />
                   </div>
                   <div className="col-span-3">
-                    <TextInput
-                      placeholder="Enter dept..."
+                    <SelectDropdown
+                      placeholder="Select department..."
+                      options={lookupDepartments}
                       value={row.department}
                       onChange={(e) => updateRow(row.id, 'department', e.target.value)}
                     />
                   </div>
                   <div className="col-span-3 flex items-center gap-1.5">
                     <div className="flex-1">
-                      <TextInput
-                        placeholder="Enter title..."
+                      <SelectDropdown
+                        placeholder="Select job title..."
+                        options={lookupJobTitles}
                         value={row.jobTitle}
                         onChange={(e) => updateRow(row.id, 'jobTitle', e.target.value)}
                       />
@@ -434,6 +493,27 @@ export default function EmployeeImportPage() {
               </button>
             </div>
           </div>
+
+          {rows.some((r) => r.fullName.trim() || r.email.trim()) && (
+            <div className="flex justify-start">
+              <Button
+                variant="secondary"
+                disabled={isSaved}
+                isLoading={isSubmitting}
+                onClick={handleConfirmImport}
+                className="w-full sm:w-auto"
+              >
+                {isSaved ? (
+                  <>
+                    <IconCheck className="size-4" aria-hidden="true" />
+                    Employees imported
+                  </>
+                ) : (
+                  'Import employees'
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -452,7 +532,7 @@ export default function EmployeeImportPage() {
         <StepFooter
           backTo="/onboarding/job-titles"
           onContinue={handleContinue}
-          isLoading={isSubmitting}
+          continueDisabled={!isSaved}
         />
       </div>
     </div>

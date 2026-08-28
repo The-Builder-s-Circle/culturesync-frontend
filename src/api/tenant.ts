@@ -36,6 +36,7 @@ export interface TenantLookupData {
   jobTitles?: LookupOption[]
   gradeLevels?: LookupOption[]
   departments?: LookupOption[]
+  onboardingSteps?: LookupOption[]
 }
 
 export interface OnboardingProgressData {
@@ -118,11 +119,30 @@ export function extractTenantId(source: unknown): string | null {
   return null
 }
 
+let lookupPromiseCache: Promise<BaseApiResponse<TenantLookupData>> | null = null
+
+/**
+ * Single-flight cached lookup so multiple pages share one request per session.
+ * Canonical option lists (industries, departments, job titles, etc.) must come
+ * from here - never hardcode them in components.
+ */
+export function getTenantLookup(): Promise<BaseApiResponse<TenantLookupData>> {
+  if (!lookupPromiseCache) {
+    lookupPromiseCache = apiClient
+      .get<BaseApiResponse<TenantLookupData>>('/api/Tenant/lookup')
+      .then((response) => response.data)
+      .catch((err: unknown) => {
+        lookupPromiseCache = null
+        throw err
+      })
+  }
+  return lookupPromiseCache
+}
+
 export const tenantApi = {
   /**
    * Setup tenant organization profile (PUT /api/Tenant/setup-profile)
-   */
-  setupProfile: async (formData: FormData): Promise<BaseApiResponse> => {
+   */  setupProfile: async (formData: FormData): Promise<BaseApiResponse> => {
     const response = await apiClient.put<BaseApiResponse>(
       '/api/Tenant/setup-profile',
       formData,

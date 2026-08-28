@@ -1,10 +1,12 @@
 import { ONBOARDING_STEPS } from '../pages/onboarding/steps'
 
 export const STORAGE_TENANT_ID_KEY = 'culturesync_tenant_id'
-export const STORAGE_PROGRESS_PREFIX = 'culturesync_onboarding_progress'
-export const STORAGE_SELECTED_DEPTS_PREFIX = 'culturesync_selected_departments'
-export const STORAGE_CUSTOM_DEPTS_PREFIX = 'culturesync_custom_departments'
-export const STORAGE_JOB_TITLES_PREFIX = 'culturesync_job_titles'
+// _v2: pre-v2 entries hold retired data shapes (short dept ids like 'eng',
+// hardcoded job titles) that must never surface after the canonical lookup fix
+export const STORAGE_PROGRESS_PREFIX = 'culturesync_onboarding_progress_v2'
+export const STORAGE_SELECTED_DEPTS_PREFIX = 'culturesync_selected_departments_v2'
+export const STORAGE_CUSTOM_DEPTS_PREFIX = 'culturesync_custom_departments_v2'
+export const STORAGE_JOB_TITLES_PREFIX = 'culturesync_job_titles_v2'
 
 export const STEP_ORDER = [
   'organization',
@@ -36,6 +38,16 @@ export function getTenantJobTitlesKey(tenantId?: string | null): string {
   return tenantId
     ? `${STORAGE_JOB_TITLES_PREFIX}_${tenantId}`
     : `${STORAGE_JOB_TITLES_PREFIX}_anonymous`
+}
+
+// Skipped steps are a frontend-only concern (the backend is never told about
+// skips) - they unlock later steps without counting toward completion.
+export const STORAGE_SKIPPED_STEPS_PREFIX = 'culturesync_skipped_steps_v2'
+
+export function getTenantSkippedStepsKey(tenantId?: string | null): string {
+  return tenantId
+    ? `${STORAGE_SKIPPED_STEPS_PREFIX}_${tenantId}`
+    : `${STORAGE_SKIPPED_STEPS_PREFIX}_anonymous`
 }
 
 export function mapStepNameToId(name: unknown): string | null {
@@ -72,6 +84,79 @@ export function mapStepNameToId(name: unknown): string | null {
   }
 
   return null
+}
+
+/**
+ * Safely reads this tenant's cached completed-step ids from localStorage.
+ * Returns [] on any failure or malformed payload.
+ */
+export function readCompletedStepsCache(tenantId?: string | null): string[] {
+  try {
+    const key = getTenantProgressStorageKey(tenantId)
+    const stored = localStorage.getItem(key)
+    if (!stored) return []
+    const parsed = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((id): id is string => typeof id === 'string' && STEP_ORDER.includes(id))
+  } catch {
+    return []
+  }
+}
+
+/** Persists completed-step ids; silently ignores storage failures (quota, private mode). */
+export function writeCompletedStepsCache(tenantId?: string | null, steps?: string[]): void {
+  if (!steps || !STEP_ORDER.some((s) => steps.includes(s))) return
+  try {
+    localStorage.setItem(getTenantProgressStorageKey(tenantId), JSON.stringify(steps))
+  } catch {
+    // Non-fatal: progress still lives in React state and on the server
+  }
+}
+
+/** Safely reads this tenant's cached skipped-step ids. [] on any failure. */
+export function readSkippedStepsCache(tenantId?: string | null): string[] {
+  try {
+    const stored = localStorage.getItem(getTenantSkippedStepsKey(tenantId))
+    if (!stored) return []
+    const parsed = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((id): id is string => typeof id === 'string' && STEP_ORDER.includes(id))
+  } catch {
+    return []
+  }
+}
+
+/** Persists skipped-step ids; silently ignores storage failures. */
+export function writeSkippedStepsCache(tenantId?: string | null, steps?: string[]): void {
+  if (!steps || steps.length === 0) return
+  try {
+    localStorage.setItem(getTenantSkippedStepsKey(tenantId), JSON.stringify(steps))
+  } catch {
+    // Non-fatal: skips still live in React state for this session
+  }
+}
+
+/**
+ * A step is reachable only when every earlier step has been completed OR
+ * explicitly skipped - the flow is strictly sequential.
+ */
+export function isStepIndexUnlocked(stepIndex: number, doneOrSkipped: Set<string>): boolean {
+  for (let i = 0; i < stepIndex; i++) {
+    if (!doneOrSkipped.has(STEP_ORDER[i])) return false
+  }
+  return true
+}
+
+/**
+ * Union of both sources, ordered by the canonical step order.
+ * The server can lag behind reality (silent-skip progression guards), and the
+ * local cache can lag after another device advances - merging means neither
+ * source can regress the other.
+ */
+export function mergeStepLists(local: string[], fromServer: string[]): string[] {
+  const seen = new Set([...local, ...fromServer])
+  const merged = STEP_ORDER.filter((step) => seen.has(step))
+  return merged
 }
 
 /**
