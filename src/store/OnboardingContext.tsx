@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { OnboardingContext } from './OnboardingContextObject'
 import { ONBOARDING_STEPS } from '../pages/onboarding/steps'
-import { tenantApi, extractTenantId } from '../api'
 import {
   STORAGE_TENANT_ID_KEY,
-  getTenantProgressStorageKey,
-  normalizeStepIds,
+  readCompletedStepsCache,
+  writeCompletedStepsCache,
+  readSkippedStepsCache,
+  writeSkippedStepsCache,
+  mergeStepLists,
 } from './onboardingUtils'
+import { runProgressSync } from './progressSync'
 
 export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [tenantId, setTenantIdState] = useState<string | null>(() => {
@@ -18,40 +21,43 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   })
 
-  const [completedSteps, setCompletedSteps] = useState<string[]>(() => {
-    try {
-      const activeTenant = localStorage.getItem(STORAGE_TENANT_ID_KEY)
-      if (!activeTenant) return []
-      const key = getTenantProgressStorageKey(activeTenant)
-      const stored = localStorage.getItem(key)
-      return stored ? (JSON.parse(stored) as string[]) : []
-    } catch {
-      return []
-    }
-  })
+  // Cache-first hydration: instant paint with the last known progress
+  const [completedSteps, setCompletedSteps] = useState<string[]>(() =>
+    readCompletedStepsCache(localStorage.getItem(STORAGE_TENANT_ID_KEY))
+  )
+
+  // Frontend-only: steps the user explicitly skipped (unlock, never complete)
+  const [skippedSteps, setSkippedSteps] = useState<string[]>(() =>
+    readSkippedStepsCache(localStorage.getItem(STORAGE_TENANT_ID_KEY))
+  )
 
   const [isLoadingProgress, setIsLoadingProgress] = useState<boolean>(false)
   const [error] = useState<string | null>(null)
 
+  // Prevents overlapping server syncs (mount + tenant change + manual refresh)
+  const syncInFlightRef = useRef(false)
+  // Latest known tenant id, readable inside async callbacks without stale closures
+  const tenantIdRef = useRef(tenantId)
+
   const setTenantId = useCallback((id: string | null) => {
+    tenantIdRef.current = id
     setTenantIdState(id)
     if (id) {
-      localStorage.setItem(STORAGE_TENANT_ID_KEY, id)
-      // Hydrate tenant-scoped progress strictly for this tenant
       try {
-        const key = getTenantProgressStorageKey(id)
-        const stored = localStorage.getItem(key)
-        if (stored) {
-          setCompletedSteps(JSON.parse(stored) as string[])
-        } else {
-          setCompletedSteps([])
-        }
+        localStorage.setItem(STORAGE_TENANT_ID_KEY, id)
       } catch {
-        setCompletedSteps([])
+        // Non-fatal
       }
+      setCompletedSteps(readCompletedStepsCache(id))
+      setSkippedSteps(readSkippedStepsCache(id))
     } else {
-      localStorage.removeItem(STORAGE_TENANT_ID_KEY)
+      try {
+        localStorage.removeItem(STORAGE_TENANT_ID_KEY)
+      } catch {
+        // Non-fatal
+      }
       setCompletedSteps([])
+      setSkippedSteps([])
     }
   }, [])
 
@@ -60,125 +66,99 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
       setCompletedSteps((prev) => {
         if (prev.includes(stepId)) return prev
         const next = [...prev, stepId]
-        try {
-          const key = getTenantProgressStorageKey(tenantId)
-          localStorage.setItem(key, JSON.stringify(next))
-        } catch (e) {
-          console.warn('Failed to save onboarding progress to localStorage', e)
-        }
+        writeCompletedStepsCache(tenantIdRef.current, next)
         return next
       })
     },
-    [tenantId]
+    []
   )
 
+  /** Records an explicit skip - unlocks later steps without counting as done. */
+  const skipStep = useCallback((stepId: string) => {
+    setSkippedSteps((prev) => {
+      if (prev.includes(stepId)) return prev
+      const next = [...prev, stepId]
+      writeSkippedStepsCache(tenantIdRef.current, next)
+      return next
+    })
+  }, [])
+
+  /**
+   * Union-merge of server-derived steps into current state, persisted on
+   * change. The backend's progression can legitimately lag behind steps the
+   * user actually completed (silent-skip progression guards), so applying the
+   * server list verbatim would regress the local cache - a union never does.
+   */
+  const mergeServerSteps = useCallback((fromServer: string[], activeTenantId: string | null) => {
+    setCompletedSteps((prev) => {
+      const merged = mergeStepLists(prev, fromServer)
+      if (merged.length === prev.length && merged.every((step, i) => step === prev[i])) {
+        return prev
+      }
+      writeCompletedStepsCache(activeTenantId || tenantIdRef.current, merged)
+      return merged
+    })
+  }, [])
+
+  /**
+   * Manual refresh entry point (exposed as fetchProgress). Not referenced by
+   * any effect, so it may manage loading state directly.
+   */
   const fetchProgress = useCallback(async () => {
+    if (syncInFlightRef.current) return
+    syncInFlightRef.current = true
     setIsLoadingProgress(true)
     try {
-      // 1. Resolve active tenant ID
-      const resolvedTenantId = await tenantApi.resolveActiveTenantId()
-      if (resolvedTenantId && resolvedTenantId !== tenantId) {
-        setTenantId(resolvedTenantId)
-      }
-
-      // 2. Fetch authoritative onboarding progress from backend
-      const progressRes = await tenantApi.getOnboardingProgress()
-      if (progressRes.isSuccess || progressRes.succeeded) {
-        const raw = progressRes.data as
-          | {
-              completedSteps?: unknown[]
-              currentStep?: string | number
-              completionPercentage?: number
-              percentageComplete?: number
-              percentage?: number
-            }
-          | undefined
-
-        const pct =
-          raw?.completionPercentage ?? raw?.percentageComplete ?? raw?.percentage ?? 0
-
-        const normalizedFromApi = normalizeStepIds(
-          raw?.completedSteps,
-          pct,
-          raw?.currentStep
-        )
-
-        // Directly apply authoritative server response
-        setCompletedSteps(normalizedFromApi)
-
-        const activeId = resolvedTenantId || tenantId
-        if (activeId) {
-          try {
-            const key = getTenantProgressStorageKey(activeId)
-            localStorage.setItem(key, JSON.stringify(normalizedFromApi))
-          } catch (e) {
-            console.warn('Storage write failed', e)
-          }
-        }
-      }
-    } catch (err: unknown) {
-      console.warn('Progress sync from backend deferred:', err)
+      await runProgressSync({
+        onTenant: (resolved) => setTenantId(resolved),
+        onSteps: mergeServerSteps,
+      })
     } finally {
+      syncInFlightRef.current = false
       setIsLoadingProgress(false)
     }
-  }, [setTenantId, tenantId])
+  }, [mergeServerSteps, setTenantId])
 
-  // Sync progress on initial mount and whenever tenantId changes
+  // Initial + tenant-change sync. Every state update happens inside callbacks
+  // of awaited promises, never synchronously in the effect body.
   useEffect(() => {
-    let ignore = false
-    const syncInitialProgress = async () => {
+    let cancelled = false
+
+    const sync = async () => {
+      if (syncInFlightRef.current) return
+      syncInFlightRef.current = true
       try {
-        const lookupRes = await tenantApi.lookup()
-        if (!ignore && (lookupRes.isSuccess || lookupRes.succeeded)) {
-          const resolvedId = extractTenantId(lookupRes)
-          if (resolvedId && resolvedId !== tenantId) {
-            setTenantId(resolvedId)
-          }
-        }
-
-        const progressRes = await tenantApi.getOnboardingProgress()
-        if (!ignore && (progressRes.isSuccess || progressRes.succeeded)) {
-          const raw = progressRes.data as
-            | {
-                completedSteps?: unknown[]
-                currentStep?: string | number
-                completionPercentage?: number
-                percentageComplete?: number
-                percentage?: number
-              }
-            | undefined
-
-          const pct =
-            raw?.completionPercentage ?? raw?.percentageComplete ?? raw?.percentage ?? 0
-
-          const normalizedFromApi = normalizeStepIds(
-            raw?.completedSteps,
-            pct,
-            raw?.currentStep
-          )
-
-          setCompletedSteps(normalizedFromApi)
-
-          const activeId = localStorage.getItem(STORAGE_TENANT_ID_KEY)
-          if (activeId) {
+        await runProgressSync({
+          onTenant: (resolved) => {
+            if (cancelled || resolved === tenantIdRef.current) return
+            // Tenant switched server-side: adopt it and hydrate its cache.
+            // Server steps below will merge on top of the hydrated list.
+            tenantIdRef.current = resolved
+            setTenantIdState(resolved)
             try {
-              const key = getTenantProgressStorageKey(activeId)
-              localStorage.setItem(key, JSON.stringify(normalizedFromApi))
-            } catch (e) {
-              console.warn('Storage write failed', e)
+              localStorage.setItem(STORAGE_TENANT_ID_KEY, resolved)
+            } catch {
+              // Non-fatal
             }
-          }
-        }
-      } catch (err: unknown) {
-        console.warn('Initial progress sync deferred:', err)
+            setCompletedSteps(readCompletedStepsCache(resolved))
+            setSkippedSteps(readSkippedStepsCache(resolved))
+          },
+          onSteps: (fromServer, activeId) => {
+            if (!cancelled) mergeServerSteps(fromServer, activeId)
+          },
+        })
+      } catch {
+        // runProgressSync already reports failures via console.warn
+      } finally {
+        syncInFlightRef.current = false
       }
     }
 
-    syncInitialProgress()
+    void sync()
     return () => {
-      ignore = true
+      cancelled = true
     }
-  }, [setTenantId, tenantId])
+  }, [mergeServerSteps, tenantId])
 
   const totalSteps = ONBOARDING_STEPS.length
 
@@ -194,6 +174,24 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
     [completedSteps]
   )
 
+  const doneOrSkipped = useMemo(
+    () => new Set([...completedSteps, ...skippedSteps]),
+    [completedSteps, skippedSteps]
+  )
+
+  const isStepUnlocked = useCallback(
+    (stepId: string): boolean => {
+      const index = ONBOARDING_STEPS.findIndex((step) => step.id === stepId)
+      if (index <= 0) return true
+      for (let i = 0; i < index; i++) {
+        const prior = ONBOARDING_STEPS[i].id
+        if (!doneOrSkipped.has(prior)) return false
+      }
+      return true
+    },
+    [doneOrSkipped]
+  )
+
   const getResumeRoute = useCallback((): string => {
     const firstIncomplete = ONBOARDING_STEPS.find((step) => !completedSteps.includes(step.id))
     return firstIncomplete ? firstIncomplete.path : '/dashboard'
@@ -201,12 +199,12 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
 
   const currentStepId =
     ONBOARDING_STEPS.find((step) => !completedSteps.includes(step.id))?.id || 'complete'
-  const isComplete = completedSteps.length >= totalSteps
 
   const value = useMemo(
     () => ({
       tenantId,
       completedSteps,
+      skippedSteps,
       currentStepId,
       percentageComplete,
       percentComplete: percentageComplete,
@@ -214,24 +212,27 @@ export const OnboardingProvider: React.FC<{ children: ReactNode }> = ({ children
       error,
       setTenantId,
       markStepComplete,
+      skipStep,
       fetchProgress,
       isStepComplete,
+      isStepUnlocked,
       getResumeRoute,
-      isComplete,
     }),
     [
       tenantId,
       completedSteps,
+      skippedSteps,
       currentStepId,
       percentageComplete,
       isLoadingProgress,
       error,
       setTenantId,
       markStepComplete,
+      skipStep,
       fetchProgress,
       isStepComplete,
+      isStepUnlocked,
       getResumeRoute,
-      isComplete,
     ]
   )
 

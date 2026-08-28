@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { Button, TextInput } from '../../components/ui'
@@ -19,36 +19,50 @@ import {
   IconDeviceDesktop,
   IconMicroscope,
   IconWorld,
+  IconLoader2,
   IconPlus,
+  IconCheck,
 } from '@tabler/icons-react'
 import { useOnboarding, useAuth, getTenantSelectedDeptsKey, getTenantCustomDeptsKey } from '../../store'
-import { departmentApi, tenantApi } from '../../api'
+import { departmentApi, tenantApi, getTenantLookup } from '../../api'
+import type { LookupOption } from '../../api'
+
+type DeptIcon = React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>
 
 interface PredefinedDept {
   id: string
   name: string
-  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' | 'false' }>
+  icon: DeptIcon
   iconBg: string
   iconColor: string
 }
 
-const PREDEFINED_DEPARTMENTS: PredefinedDept[] = [
-  { id: 'eng', name: 'Engineering', icon: IconSettings, iconBg: 'bg-purple-100', iconColor: 'text-purple-600' },
-  { id: 'prod', name: 'Product & Design', icon: IconPalette, iconBg: 'bg-rose-100', iconColor: 'text-rose-600' },
-  { id: 'sales', name: 'Sales & Revenue', icon: IconChartLine, iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
-  { id: 'mkt', name: 'Marketing', icon: IconSpeakerphone, iconBg: 'bg-orange-100', iconColor: 'text-orange-600' },
-  { id: 'hr', name: 'Human Resources', icon: IconUsers, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600' },
-  { id: 'fin', name: 'Finance & Accounting', icon: IconCreditCard, iconBg: 'bg-cyan-100', iconColor: 'text-cyan-700' },
-  { id: 'cs', name: 'Customer Success', icon: IconHeartHandshake, iconBg: 'bg-amber-100', iconColor: 'text-amber-600' },
-  { id: 'legal', name: 'Legal & Compliance', icon: IconScale, iconBg: 'bg-amber-100', iconColor: 'text-amber-700' },
-  { id: 'ops', name: 'Operations', icon: IconTool, iconBg: 'bg-violet-100', iconColor: 'text-violet-600' },
-  { id: 'exec', name: 'Executive', icon: IconBuildingSkyscraper, iconBg: 'bg-slate-100', iconColor: 'text-slate-700' },
-  { id: 'data', name: 'Data & Analytics', icon: IconChartBar, iconBg: 'bg-pink-100', iconColor: 'text-pink-600' },
-  { id: 'sec', name: 'Security', icon: IconShield, iconBg: 'bg-indigo-100', iconColor: 'text-indigo-600' },
-  { id: 'it', name: 'IT & Infrastructure', icon: IconDeviceDesktop, iconBg: 'bg-sky-100', iconColor: 'text-sky-600' },
-  { id: 'rd', name: 'Research & Development', icon: IconMicroscope, iconBg: 'bg-purple-100', iconColor: 'text-purple-700' },
-  { id: 'biz', name: 'Business Development', icon: IconWorld, iconBg: 'bg-teal-100', iconColor: 'text-teal-600' },
-]
+const DEPT_STYLE_BY_NAME: Record<string, { icon: DeptIcon; iconBg: string; iconColor: string }> = {
+  Engineering: { icon: IconSettings, iconBg: 'bg-purple-100', iconColor: 'text-purple-600' },
+  'Human Resources': { icon: IconUsers, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600' },
+  'Sales & Revenue': { icon: IconChartLine, iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
+  Marketing: { icon: IconSpeakerphone, iconBg: 'bg-orange-100', iconColor: 'text-orange-600' },
+  'Finance & Accounting': { icon: IconCreditCard, iconBg: 'bg-cyan-100', iconColor: 'text-cyan-700' },
+  'Customer Support': { icon: IconHeartHandshake, iconBg: 'bg-amber-100', iconColor: 'text-amber-600' },
+  Operations: { icon: IconTool, iconBg: 'bg-violet-100', iconColor: 'text-violet-600' },
+  'Business Development': { icon: IconWorld, iconBg: 'bg-teal-100', iconColor: 'text-teal-600' },
+  'Legal & Compliance': { icon: IconScale, iconBg: 'bg-amber-100', iconColor: 'text-amber-700' },
+  Executive: { icon: IconBuildingSkyscraper, iconBg: 'bg-slate-100', iconColor: 'text-slate-700' },
+  'Data & Analytics': { icon: IconChartBar, iconBg: 'bg-pink-100', iconColor: 'text-pink-600' },
+  Security: { icon: IconShield, iconBg: 'bg-indigo-100', iconColor: 'text-indigo-600' },
+  'IT & Infrastructure': { icon: IconDeviceDesktop, iconBg: 'bg-sky-100', iconColor: 'text-sky-600' },
+  'Research & Development': { icon: IconMicroscope, iconBg: 'bg-purple-100', iconColor: 'text-purple-700' },
+}
+
+const DEFAULT_DEPT_STYLE = { icon: IconPalette, iconBg: 'bg-slate-100', iconColor: 'text-slate-600' }
+
+function toPredefinedDepts(options: LookupOption[]): PredefinedDept[] {
+  return options.map((option) => ({
+    id: option.value,
+    name: option.label || option.value,
+    ...(DEPT_STYLE_BY_NAME[option.value] ?? DEFAULT_DEPT_STYLE),
+  }))
+}
 
 export default function DepartmentsPage() {
   const navigate = useNavigate()
@@ -58,6 +72,28 @@ export default function DepartmentsPage() {
   const activeTenantId = tenantId || user?.tenantId || null
   const selectedDeptsKey = getTenantSelectedDeptsKey(activeTenantId)
   const customDeptsKey = getTenantCustomDeptsKey(activeTenantId)
+
+  const [predefinedDepartments, setPredefinedDepartments] = useState<PredefinedDept[]>([])
+  const [isLoadingLookup, setIsLoadingLookup] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    getTenantLookup()
+      .then((res) => {
+        if (!cancelled && (res.isSuccess || res.succeeded) && Array.isArray(res.data?.departments)) {
+          setPredefinedDepartments(toPredefinedDepts(res.data!.departments!))
+        }
+      })
+      .catch(() => {
+        // Lookup offline - custom departments remain available
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingLookup(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Selected predefined departments (strictly tenant-scoped, defaults to empty)
   const [selectedPredefined, setSelectedPredefined] = useState<string[]>(() => {
@@ -81,6 +117,7 @@ export default function DepartmentsPage() {
 
   const [draftName, setDraftName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const togglePredefined = (id: string) => {
@@ -101,7 +138,7 @@ export default function DepartmentsPage() {
     if (!trimmed) return
 
     // Check if matches an existing predefined department name
-    const match = PREDEFINED_DEPARTMENTS.find(
+    const match = predefinedDepartments.find(
       (d) => d.name.toLowerCase() === trimmed.toLowerCase()
     )
     if (match) {
@@ -147,7 +184,7 @@ export default function DepartmentsPage() {
 
   const totalSelectedCount = selectedPredefined.length + customDepartments.length
 
-  const handleContinue = async () => {
+  const handleSave = async () => {
     setError(null)
     if (totalSelectedCount === 0) {
       setError('Please select or add at least one department.')
@@ -156,7 +193,6 @@ export default function DepartmentsPage() {
 
     setIsSubmitting(true)
     try {
-      // Resolve tenantId
       let activeTenantId = tenantId || user?.tenantId || null
       if (!activeTenantId) {
         activeTenantId = await tenantApi.resolveActiveTenantId()
@@ -169,13 +205,13 @@ export default function DepartmentsPage() {
         throw new Error('Tenant identifier not found. Please complete the organization step first.')
       }
 
-      const defaultDepartmentsPayload = PREDEFINED_DEPARTMENTS.filter((d) =>
-        selectedPredefined.includes(d.id)
-      ).map((d) => ({
-        name: d.name,
-        description: null,
-        managerId: null,
-      }))
+      const defaultDepartmentsPayload = predefinedDepartments
+        .filter((d) => selectedPredefined.includes(d.id))
+        .map((d) => ({
+          name: d.name,
+          description: null,
+          managerId: null,
+        }))
 
       const customDepartmentsPayload = customDepartments.map((name) => ({
         name,
@@ -195,8 +231,7 @@ export default function DepartmentsPage() {
         if (res.data && Array.isArray(res.data)) {
           localStorage.setItem('culturesync_department_ids', JSON.stringify(res.data))
         }
-        markStepComplete('departments')
-        navigate('/onboarding/job-titles')
+        setIsSaved(true)
       } else {
         const msg =
           (res.messages && res.messages.join('. ')) ||
@@ -211,6 +246,11 @@ export default function DepartmentsPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleContinue = () => {
+    markStepComplete('departments')
+    navigate('/onboarding/job-titles')
   }
 
   return (
@@ -230,7 +270,14 @@ export default function DepartmentsPage() {
 
       {/* Grid of predefined & custom department cards */}
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {PREDEFINED_DEPARTMENTS.map((dept) => (
+        {isLoadingLookup && (
+          <div className="col-span-full flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+            <IconLoader2 className="size-4 animate-spin" aria-hidden="true" />
+            Loading departments...
+          </div>
+        )}
+
+        {predefinedDepartments.map((dept) => (
           <DepartmentCard
             key={dept.id}
             id={dept.id}
@@ -276,12 +323,30 @@ export default function DepartmentsPage() {
         </Button>
       </form>
 
+      <div className="mt-6">
+        <Button
+          variant="secondary"
+          disabled={totalSelectedCount === 0 || isSaved}
+          isLoading={isSubmitting}
+          onClick={handleSave}
+          className="w-full sm:w-auto"
+        >
+          {isSaved ? (
+            <>
+              <IconCheck className="size-4" aria-hidden="true" />
+              Departments saved
+            </>
+          ) : (
+            'Save departments'
+          )}
+        </Button>
+      </div>
+
       {/* Footer navigation */}
       <StepFooter
         backTo="/onboarding/organization"
         onContinue={handleContinue}
-        continueDisabled={totalSelectedCount === 0}
-        isLoading={isSubmitting}
+        continueDisabled={!isSaved}
       />
     </div>
   )

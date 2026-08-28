@@ -14,6 +14,26 @@ export interface EmployeeImportDto {
   hireDate?: string | null
 }
 
+/**
+ * Row-level validation result returned by validate-import.
+ * Matches CultureSync.Application.Commands.Employees.ValidateEmployeeImport.EmployeeImportRow
+ */
+export interface EmployeeImportRow {
+  employee?: EmployeeImportDto
+  isValid?: boolean
+  errors?: string[]
+}
+
+/**
+ * Matches CultureSync.Application.Commands.Employees.ValidateEmployeeImport.ValidateEmployeeImportResponse
+ */
+export interface ValidateEmployeeImportResponse {
+  totalRows?: number
+  validRows?: number
+  invalidRows?: number
+  rows?: EmployeeImportRow[]
+}
+
 export interface ConfirmEmployeeImportCommand {
   employees: EmployeeImportDto[]
 }
@@ -30,11 +50,11 @@ export const employeeApi = {
   validateImport: async (
     tenantId: string,
     file: File
-  ): Promise<BaseApiResponse<EmployeeImportDto[]>> => {
+  ): Promise<BaseApiResponse<ValidateEmployeeImportResponse>> => {
     const formData = new FormData()
     formData.append('File', file)
 
-    const response = await apiClient.post<BaseApiResponse<EmployeeImportDto[]>>(
+    const response = await apiClient.post<BaseApiResponse<ValidateEmployeeImportResponse>>(
       `/api/tenants/${encodeURIComponent(tenantId)}/employees/validate-import`,
       formData,
       {

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { SelectDropdown, TextInput, ToggleSwitch } from '../../components/ui'
+import { Button, SelectDropdown, TextInput, ToggleSwitch } from '../../components/ui'
 import { StepFooter, StepHeader } from '../../components/onboarding'
+import { IconCheck } from '@tabler/icons-react'
 import { useOnboarding, useAuth } from '../../store'
 import { hrConfigurationApi, tenantApi } from '../../api'
 import type {
@@ -60,6 +61,7 @@ export default function HrConfigPage() {
   const [requireEmployeeDocuments, setRequireEmployeeDocuments] = useState(false)
   const [requireManager, setRequireManager] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const toggleCustomDay = (day: DayOfWeekOption) => {
@@ -68,7 +70,7 @@ export default function HrConfigPage() {
     )
   }
 
-  const handleContinue = async () => {
+  const handleSave = async () => {
     setError(null)
     setIsSubmitting(true)
     try {
@@ -113,9 +115,7 @@ export default function HrConfigPage() {
       }
 
       await hrConfigurationApi.setup(activeTenantId, payload)
-
-      markStepComplete('hr-config')
-      navigate('/onboarding/complete')
+      setIsSaved(true)
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Failed to save HR configuration. Please try again.'
@@ -123,6 +123,11 @@ export default function HrConfigPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleContinue = () => {
+    markStepComplete('hr-config')
+    navigate('/onboarding/complete')
   }
 
   return (
@@ -346,11 +351,30 @@ export default function HrConfigPage() {
         </div>
       </div>
 
+      <div className="mt-6">
+        <Button
+          variant="secondary"
+          disabled={isSaved}
+          isLoading={isSubmitting}
+          onClick={handleSave}
+          className="w-full sm:w-auto"
+        >
+          {isSaved ? (
+            <>
+              <IconCheck className="size-4" aria-hidden="true" />
+              Configuration saved
+            </>
+          ) : (
+            'Save configuration'
+          )}
+        </Button>
+      </div>
+
       <StepFooter
         backTo="/onboarding/invite"
         onContinue={handleContinue}
         continueLabel="Finish setup"
-        isLoading={isSubmitting}
+        continueDisabled={!isSaved}
       />
     </div>
   )
