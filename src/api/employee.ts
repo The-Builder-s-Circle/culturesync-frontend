@@ -43,6 +43,21 @@ export interface InviteEmployeeCommand {
   roleId?: string
 }
 
+/**
+ * Matches CultureSync.Application.Commands.Employees.BulkInviteEmployees.BulkInviteEmployeeRequest
+ */
+export interface BulkInviteEmployeeRequest {
+  email: string
+  roleId?: string
+}
+
+/**
+ * Matches CultureSync.Application.Commands.Employees.BulkInviteEmployees.BulkInviteEmployeeCommand
+ */
+export interface BulkInviteEmployeeCommand {
+  recipients: BulkInviteEmployeeRequest[]
+}
+
 export const employeeApi = {
   /**
    * Validate roster file import (POST /api/tenants/{tenantId}/employees/validate-import)
@@ -90,6 +105,20 @@ export const employeeApi = {
   ): Promise<BaseApiResponse> => {
     const response = await apiClient.post<BaseApiResponse>(
       `/api/tenants/${encodeURIComponent(tenantId)}/employees/invite`,
+      payload
+    )
+    return response.data
+  },
+
+  /**
+   * Bulk invite employees (POST /api/tenants/{tenantId}/employees/bulk-invite)
+   */
+  bulkInvite: async (
+    tenantId: string,
+    payload: BulkInviteEmployeeCommand
+  ): Promise<BaseApiResponse> => {
+    const response = await apiClient.post<BaseApiResponse>(
+      `/api/tenants/${encodeURIComponent(tenantId)}/employees/bulk-invite`,
       payload
     )
     return response.data

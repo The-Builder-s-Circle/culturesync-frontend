@@ -49,6 +49,19 @@ export interface OnboardingProgressData {
 }
 
 /**
+ * Matches the data returned by GET /api/Tenant/{tenantId}/onboarding-data.
+ * Used to render the configuration summary on the final onboarding step.
+ */
+export interface OnboardingData {
+  organizationName?: string | null
+  noOfDepartments?: number | null
+  noOfJobTitles?: number | null
+  noOfEmployeesInvited?: number | null
+  payPeriod?: string | null
+  workingDays?: (number | string)[] | null
+}
+
+/**
  * Extracts tenant identifier from JWT token claims
  */
 export function getTenantIdFromJwt(token?: string | null): string | null {
@@ -169,6 +182,19 @@ export const tenantApi = {
   getOnboardingProgress: async (): Promise<BaseApiResponse<OnboardingProgressData>> => {
     const response = await apiClient.get<BaseApiResponse<OnboardingProgressData>>(
       '/api/Tenant/onboarding-progress'
+    )
+    return response.data
+  },
+
+  /**
+   * Get tenant onboarding summary data
+   * (GET /api/Tenant/{tenantId}/onboarding-data)
+   */
+  getOnboardingData: async (
+    tenantId: string
+  ): Promise<BaseApiResponse<OnboardingData>> => {
+    const response = await apiClient.get<BaseApiResponse<OnboardingData>>(
+      `/api/Tenant/${encodeURIComponent(tenantId)}/onboarding-data`
     )
     return response.data
   },
