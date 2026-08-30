@@ -1,17 +1,89 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { Button } from '../../components/ui'
 import { IconCheck, IconRocket } from '@tabler/icons-react'
+import { useOnboarding, useAuth } from '../../store'
+import { tenantApi } from '../../api'
+import type { OnboardingData } from '../../api'
 
-const SUMMARY = [
-  { label: 'Organization', value: 'CultureSync Inc.' },
-  { label: 'Departments', value: '8 configured' },
-  { label: 'Job titles', value: '12 defined' },
-  { label: 'Team invites', value: '2 pending' },
-  { label: 'Work week', value: 'Monday — Friday' },
-  { label: 'Pay period', value: 'Bi-weekly' },
-]
+const DAY_NAMES: Record<number, string> = {
+  1: 'Mon',
+  2: 'Tue',
+  3: 'Wed',
+  4: 'Thu',
+  5: 'Fri',
+  6: 'Sat',
+  7: 'Sun',
+}
+
+function formatWorkWeek(days?: (number | string)[] | null): string {
+  if (!days || days.length === 0) return 'Not configured'
+  const names = days
+    .map((d) => {
+      const num = typeof d === 'string' ? Number(d) : d
+      if (Number.isFinite(num)) return DAY_NAMES[num]
+      return String(d)
+    })
+    .filter(Boolean)
+  return [...new Set(names)].join(' — ')
+}
+
+function formatPayPeriod(value?: string | null): string {
+  if (!value) return 'Not configured'
+  const formatted = value.replace(/[_-]/g, '-').replace(/\b\w/g, (c) => c.toUpperCase())
+  return formatted
+}
+
+function buildSummary(data: OnboardingData | null): { label: string; value: string }[] {
+  if (!data) return []
+  return [
+    { label: 'Organization', value: data.organizationName || '—' },
+    { label: 'Departments', value: `${data.noOfDepartments ?? 0} configured` },
+    { label: 'Job titles', value: `${data.noOfJobTitles ?? 0} defined` },
+    { label: 'Team invites', value: `${data.noOfEmployeesInvited ?? 0} pending` },
+    { label: 'Work week', value: formatWorkWeek(data.workingDays) },
+    { label: 'Pay period', value: formatPayPeriod(data.payPeriod) },
+  ]
+}
 
 export default function CompletePage() {
+  const { user } = useAuth()
+  const { tenantId, setTenantId } = useOnboarding()
+
+  const [summary, setSummary] = useState<{ label: string; value: string }[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const load = async () => {
+      try {
+        let activeTenantId = tenantId || user?.tenantId || null
+        if (!activeTenantId) {
+          activeTenantId = await tenantApi.resolveActiveTenantId()
+          if (activeTenantId) {
+            setTenantId(activeTenantId)
+          }
+        }
+        if (!activeTenantId) return
+
+        const res = await tenantApi.getOnboardingData(activeTenantId)
+        if (!cancelled) {
+          setSummary(buildSummary(res.data ?? null))
+        }
+      } catch {
+        if (!cancelled) setSummary([])
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [tenantId, user?.tenantId, setTenantId])
+
   return (
     <div className="flex flex-col items-center py-8 text-center">
       {/* Success animation */}
@@ -52,12 +124,24 @@ export default function CompletePage() {
           </p>
         </div>
         <dl className="divide-y divide-slate-100">
-          {SUMMARY.map((item) => (
-            <div key={item.label} className="flex items-center justify-between px-5 py-3">
-              <dt className="text-sm text-slate-500">{item.label}</dt>
-              <dd className="text-sm font-semibold text-slate-800">{item.value}</dd>
+          {isLoading ? (
+            <div className="space-y-3 px-5 py-5">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-4 animate-pulse rounded bg-slate-100" />
+              ))}
             </div>
-          ))}
+          ) : summary.length > 0 ? (
+            summary.map((item) => (
+              <div key={item.label} className="flex items-center justify-between px-5 py-3">
+                <dt className="text-sm text-slate-500">{item.label}</dt>
+                <dd className="text-sm font-semibold text-slate-800">{item.value}</dd>
+              </div>
+            ))
+          ) : (
+            <div className="px-5 py-6 text-sm text-slate-500">
+              Your configuration couldn't be loaded. You can review it later from Settings.
+            </div>
+          )}
         </dl>
       </div>
 
