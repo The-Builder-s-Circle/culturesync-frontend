@@ -79,6 +79,12 @@ export const SignInForm: React.FC = () => {
         <div className="relative">
           <div className="flex items-center justify-between text-sm mb-1">
             <span className="font-medium text-slate-700">Password *</span>
+            <Link
+              to="/auth/forgot-password"
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
+            >
+              Forgot password?
+            </Link>
           </div>
           <PasswordInput
             label=""

@@ -12,7 +12,12 @@ import {
   HrConfigPage,
   CompletePage,
 } from '../pages/onboarding'
-import { RegisterPage, VerifyOtpPage, SignInPage } from '../pages/auth'
+import {
+  RegisterPage,
+  VerifyOtpPage,
+  SignInPage,
+  ForgotPasswordPage,
+} from '../pages/auth'
 import ProtectedRoute from './ProtectedRoute'
 import { OnboardingProvider, useOnboarding } from '../store'
 
@@ -43,6 +48,7 @@ export default function AppRoutes() {
         <Route path="/auth/register" element={<RegisterPage />} />
         <Route path="/auth/verify-otp" element={<VerifyOtpPage />} />
         <Route path="/auth/login" element={<SignInPage />} />
+        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/login" element={<SignInPage />} />
 
         {/* Onboarding flow */}
