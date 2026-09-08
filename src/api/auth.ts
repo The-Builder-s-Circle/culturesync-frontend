@@ -29,6 +29,27 @@ export interface ChangePasswordRequest {
   confirmPassword?: string
 }
 
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  password: string
+  confirmPassword: string
+}
+
+export interface CreateEmployeeCommand {
+  firstName?: string
+  lastName?: string
+  workEmail?: string
+  phoneNumber?: string
+  departmentId: string
+  jobTitleId: string
+  userId: string
+  hireDate: string
+  managerEmail?: string
+}
+
 export const authApi = {
   /**
    * Sign up organization admin (POST /api/Auth/tenant/signup-admin)
@@ -75,12 +96,52 @@ export const authApi = {
   },
 
   /**
+   * Forgot password - sends reset email (POST /api/Auth/forgotpassword)
+   */
+  forgotPassword: async (payload: ForgotPasswordRequest): Promise<BaseApiResponse> => {
+    const response = await apiClient.post<BaseApiResponse>(
+      '/api/Auth/forgotpassword',
+      payload
+    )
+    return response.data
+  },
+
+  /**
+   * Reset password with token (POST /api/Auth/passwordreset/{token})
+   */
+  resetPassword: async (
+    token: string,
+    payload: ResetPasswordRequest
+  ): Promise<BaseApiResponse> => {
+    const encodedToken = encodeURIComponent(token)
+    const response = await apiClient.post<BaseApiResponse>(
+      `/api/Auth/passwordreset/${encodedToken}`,
+      payload
+    )
+    return response.data
+  },
+
+  /**
    * Verify invited employee token (POST /api/Auth/verify-employee/{Token})
    */
   verifyEmployee: async (token: string): Promise<BaseApiResponse> => {
     const encodedToken = encodeURIComponent(token)
     const response = await apiClient.post<BaseApiResponse>(
       `/api/Auth/verify-employee/${encodedToken}`
+    )
+    return response.data
+  },
+
+  /**
+   * Create employee manually (POST /api/tenants/{tenantId}/employees/create)
+   */
+  createEmployee: async (
+    tenantId: string,
+    payload: CreateEmployeeCommand
+  ): Promise<BaseApiResponse> => {
+    const response = await apiClient.post<BaseApiResponse>(
+      `/api/tenants/${encodeURIComponent(tenantId)}/employees/create`,
+      payload
     )
     return response.data
   },
