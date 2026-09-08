@@ -1,17 +1,11 @@
 import React, { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
-import { Button, Logo } from '../ui'
-import { PasswordInput } from './PasswordInput'
-import { calculatePasswordScore } from './passwordUtils'
+import { Link } from 'react-router'
+import { Button, Logo, TextInput } from '../ui'
 import { authApi } from '../../api'
 
 export const ForgotPasswordForm: React.FC = () => {
-  const navigate = useNavigate()
-
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -21,60 +15,39 @@ export const ForgotPasswordForm: React.FC = () => {
     setError(null)
     setSuccessMessage(null)
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setError('Please fill in all password fields.')
+    if (!email.trim()) {
+      setError('Please enter your email address.')
       return
     }
 
-    if (newPassword !== confirmPassword) {
-      setError('New passwords do not match.')
-      return
-    }
-
-    if (newPassword === currentPassword) {
-      setError('New password must be different from the current password.')
-      return
-    }
-
-    if (calculatePasswordScore(newPassword) < 3) {
-      setError(
-        'Password is too weak. Must achieve "Good" or "Strong" rating (min. 8 characters with letters, numbers & symbols).'
-      )
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address.')
       return
     }
 
     setIsSubmitting(true)
     try {
-      const res = await authApi.changePassword({
-        currentPassword,
-        newPasswordHash: newPassword,
-        confirmPassword,
-      })
+      const res = await authApi.forgotPassword({ email: email.trim() })
 
       if (res.isSuccess || res.succeeded) {
         setSuccessMessage(
-          res.message || res.messages?.join('. ') || 'Password changed successfully.'
-        )
-        setCurrentPassword('')
-        setNewPassword('')
-        setConfirmPassword('')
-        setTimeout(() => {
-          navigate('/auth/login')
-        }, 2000)
-      } else {
-        setError(
           res.message ||
             res.messages?.join('. ') ||
-            (Array.isArray(res.errors) && res.errors.length > 0
-              ? res.errors.join('. ')
-              : undefined) ||
-            'Failed to change password. Please try again.'
+            'If an account exists with that email, you will receive a password reset link shortly.'
+        )
+      } else {
+        setSuccessMessage(
+          'If an account exists with that email, you will receive a password reset link shortly.'
         )
       }
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : 'Failed to change password. Please try again.'
-      setError(message)
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+      setSuccessMessage(
+        'If an account exists with that email, you will receive a password reset link shortly.'
+      )
+      console.warn('Forgot password request failed:', message)
     } finally {
       setIsSubmitting(false)
     }
@@ -93,9 +66,9 @@ export const ForgotPasswordForm: React.FC = () => {
         <span>‹</span> Back to sign in
       </Link>
 
-      <h2 className="text-xl font-bold text-slate-900 tracking-tight">Reset your password</h2>
+      <h2 className="text-xl font-bold text-slate-900 tracking-tight">Forgot your password?</h2>
       <p className="mt-0.5 text-xs text-slate-600">
-        Set a new password for your account.
+        Enter your email and we'll send you a link to reset your password.
       </p>
 
       {error && (
@@ -110,33 +83,12 @@ export const ForgotPasswordForm: React.FC = () => {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <PasswordInput
-            label="Current password"
-            placeholder="Enter your current password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-          />
-
-          <PasswordInput
-            label="New password"
-            placeholder="Enter a new password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            showStrengthMeter
-            required
-          />
-
-          <PasswordInput
-            label="Confirm new password"
-            placeholder="Re-enter your new password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            error={
-              confirmPassword && confirmPassword !== newPassword
-                ? 'Passwords do not match'
-                : undefined
-            }
+          <TextInput
+            label="Email address"
+            type="email"
+            placeholder="you@company.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
 
@@ -147,7 +99,7 @@ export const ForgotPasswordForm: React.FC = () => {
             className="w-full mt-2"
             isLoading={isSubmitting}
           >
-            Update password
+            Send reset link
           </Button>
 
           <p className="text-center text-xs text-slate-500">

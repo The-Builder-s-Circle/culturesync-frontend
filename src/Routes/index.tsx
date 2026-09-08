@@ -17,6 +17,8 @@ import {
   VerifyOtpPage,
   SignInPage,
   ForgotPasswordPage,
+  ResetPasswordPage,
+  VerifyEmployeePage,
 } from '../pages/auth'
 import ProtectedRoute from './ProtectedRoute'
 import { OnboardingProvider, useOnboarding } from '../store'
@@ -49,6 +51,8 @@ export default function AppRoutes() {
         <Route path="/auth/verify-otp" element={<VerifyOtpPage />} />
         <Route path="/auth/login" element={<SignInPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/auth/verify-employee/:token" element={<VerifyEmployeePage />} />
         <Route path="/login" element={<SignInPage />} />
 
         {/* Onboarding flow */}
