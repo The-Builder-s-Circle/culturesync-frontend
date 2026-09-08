@@ -58,6 +58,18 @@ export interface BulkInviteEmployeeCommand {
   recipients: BulkInviteEmployeeRequest[]
 }
 
+export interface CreateEmployeePayload {
+  firstName?: string
+  lastName?: string
+  workEmail?: string
+  phoneNumber?: string
+  departmentId: string
+  jobTitleId: string
+  userId: string
+  hireDate: string
+  managerEmail?: string
+}
+
 export const employeeApi = {
   /**
    * Validate roster file import (POST /api/tenants/{tenantId}/employees/validate-import)
@@ -119,6 +131,20 @@ export const employeeApi = {
   ): Promise<BaseApiResponse> => {
     const response = await apiClient.post<BaseApiResponse>(
       `/api/tenants/${encodeURIComponent(tenantId)}/employees/bulk-invite`,
+      payload
+    )
+    return response.data
+  },
+
+  /**
+   * Create employee manually (POST /api/tenants/{tenantId}/employees/create)
+   */
+  createEmployee: async (
+    tenantId: string,
+    payload: CreateEmployeePayload
+  ): Promise<BaseApiResponse> => {
+    const response = await apiClient.post<BaseApiResponse>(
+      `/api/tenants/${encodeURIComponent(tenantId)}/employees/create`,
       payload
     )
     return response.data
