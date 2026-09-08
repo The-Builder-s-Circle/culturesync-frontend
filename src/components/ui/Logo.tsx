@@ -1,0 +1,46 @@
+import React from 'react'
+import { Link } from 'react-router'
+
+export interface LogoProps {
+  darkVariant?: boolean
+  className?: string
+  href?: string
+}
+
+export const Logo: React.FC<LogoProps> = ({
+  darkVariant = false,
+  className = '',
+  href = '/',
+}) => {
+  const logoContent = (
+    <div className={`inline-flex items-center gap-2.5 select-none ${className}`.trim()}>
+      <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shrink-0">
+        <svg
+          className="w-5 h-5 text-white"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+          />
+        </svg>
+      </div>
+
+      <span className="font-bold text-xl tracking-tight">
+        <span className={darkVariant ? 'text-white' : 'text-slate-900'}>Culture</span>
+        <span className="text-indigo-600">Sync</span>
+      </span>
+    </div>
+  )
+
+  if (href) {
+    return <Link to={href}>{logoContent}</Link>
+  }
+
+  return logoContent
+}

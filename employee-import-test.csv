@@ -1,0 +1,5 @@
+first_name,last_name,email,department,job_title,phone_number,employee_number,manager_email,hire_date
+Amina,Yusuf,amina.yusuf@company.com,IT & Infrastructure,Backend Developer,+2348010000101,EMP101,,2025-03-03
+David,Okafor,david.okafor@company.com,IT & Infrastructure,Frontend Developer,+2348010000102,EMP102,,2025-03-10
+Fatima,Bello,fatima.bello@company.com,Data & Analytics,DevOps Engineer,+2348010000103,EMP103,,2025-03-17
+Kwame,Mensah,kwame.mensah@company.com,Data & Analytics,DevOps Engineer,+2348010000104,EMP104,,2025-03-24
